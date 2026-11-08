@@ -1,0 +1,27 @@
+{
+  "name": "tab",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TAB: net-30 for AI agents on Airwallex, Metal, Visa VIC and T:0",
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "smoke:airwallex": "tsx scripts/smoke-airwallex.ts"
+  },
+  "dependencies": {
+    "@metalntwx/metal-agent": "^0.3.3",
+    "@metalntwx/metal-pay": "^0.3.4",
+    "dotenv": "^16.6.1",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.9"
+  }
+}
