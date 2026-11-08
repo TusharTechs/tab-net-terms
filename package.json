@@ -13,6 +13,7 @@
     "smoke:airwallex": "tsx scripts/smoke-airwallex.ts"
   },
   "dependencies": {
+    "@airwallex/airi-cli": "^0.1.0-beta.4",
     "@metalntwx/metal-agent": "^0.3.3",
     "@metalntwx/metal-pay": "^0.3.4",
     "dotenv": "^16.6.1",
