@@ -10,10 +10,13 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "smoke:airwallex": "tsx scripts/smoke-airwallex.ts"
+    "smoke:airwallex": "tsx scripts/smoke-airwallex.ts",
+    "screen": "tsx src/server/server.ts"
   },
   "dependencies": {
     "@airwallex/airi-cli": "^0.1.0-beta.4",
+    "@anthropic-ai/bedrock-sdk": "^1.1.1",
+    "@anthropic-ai/sdk": "^1.6.0",
     "@metalntwx/metal-agent": "^0.3.3",
     "@metalntwx/metal-pay": "^0.3.4",
     "dotenv": "^16.6.1",

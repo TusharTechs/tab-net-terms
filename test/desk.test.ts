@@ -90,6 +90,52 @@ describe("Desk", () => {
     expect(state.events.at(-1)!.type).toBe("escalate");
   });
 
+  it("credit note on an open order reduces what the next pull collects", async () => {
+    const { desk, mandate } = setup();
+    await desk.placeOrder("acme", { id: "o1", amount: 160, description: "40 queries", priceRoute: "/v2/query", unitPrice: 4, units: 40, staleUnits: 7 });
+    expect(desk.applyCredit("acme", "o1", 28, "7 stale rows")).toBe(28);
+    mandate.budget = 1_000;
+    await desk.evaluate("acme");
+    expect(mandate.pulls.at(-1)!.amount).toBe(132);
+  });
+
+  it("credit on an already-collected order is netted off the next collection", async () => {
+    const { desk, mandate, state } = setup();
+    await desk.placeOrder("acme", { id: "o1", amount: 160, description: "q", unitPrice: 4, units: 40, staleUnits: 7 });
+    mandate.budget = 1_000;
+    await desk.evaluate("acme"); // collects 160
+    desk.applyCredit("acme", "o1", 28, "stale");
+    expect(state.buyers.acme!.creditBalance).toBe(28);
+    await desk.placeOrder("acme", { id: "o2", amount: 100, description: "q" });
+    mandate.budget = 900; // tighten again → collect all
+    await desk.evaluate("acme");
+    expect(mandate.pulls.at(-1)!.amount).toBe(72);
+    expect(state.buyers.acme!.creditBalance).toBe(0);
+  });
+
+  it("a credit note can never exceed what was charged", async () => {
+    const { desk } = setup();
+    await desk.placeOrder("acme", { id: "o1", amount: 50, description: "q" });
+    expect(desk.applyCredit("acme", "o1", 80, "x")).toBe(50);
+    expect(desk.applyCredit("acme", "o1", 10, "x")).toBe(0);
+  });
+
+  it("resolveDispute applies only the code-decided credits and logs upheld claims", async () => {
+    const { desk, state } = setup();
+    await desk.placeOrder("acme", { id: "o1", amount: 160, description: "q", priceRoute: "/v2/query", unitPrice: 4, units: 40, staleUnits: 7 });
+    const { decideDispute } = await import("../src/disputes/decide.js");
+    const decision = decideDispute(
+      [
+        { type: "price_not_agreed", orderIds: ["o1"], quote: "never agreed to 4c" },
+        { type: "data_quality", orderIds: ["o1"], units: 40, quote: "all stale" },
+      ],
+      desk.evidenceFor("acme"),
+    );
+    desk.resolveDispute("acme", decision, { summary: "s" });
+    expect(state.buyers.acme!.orders[0]!.credited).toBe(28);
+    expect(state.events.find((e) => e.type === "dispute")!.summary).toMatch(/\$0\.28 credited, 1 claim\(s\) upheld/);
+  });
+
   it("re-running a collection for the same orders pays at most once", async () => {
     const { desk, mandate } = setup();
     await desk.placeOrder("acme", { id: "o1", amount: 4_000, description: "data" });

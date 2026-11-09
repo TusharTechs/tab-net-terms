@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TAB · Supplier Desk</title>
+<style>
+  :root {
+    --bg: #f6f5f1; --panel: #ffffff; --ink: #16181d; --muted: #5d6470; --line: #e3e1da;
+    --accent: #ff5a1f; --good: #12805c; --good-bg: #e3f4ec; --warn: #a15c00; --warn-bg: #fdf0d8;
+    --bad: #b42318; --bad-bg: #fde8e6; --info: #2952cc; --info-bg: #e8eefc; --bar: #ece9e1;
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1115; --panel: #171a21; --ink: #eceef2; --muted: #9aa3b2; --line: #262b35;
+      --good: #4cc79a; --good-bg: #12302a; --warn: #f0b552; --warn-bg: #33270f; --bad: #ff7a6e; --bad-bg: #3a1716;
+      --info: #8aa8ff; --info-bg: #1a2442; --bar: #232833;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1115; --panel: #171a21; --ink: #eceef2; --muted: #9aa3b2; --line: #262b35;
+    --good: #4cc79a; --good-bg: #12302a; --warn: #f0b552; --warn-bg: #33270f; --bad: #ff7a6e; --bad-bg: #3a1716;
+    --info: #8aa8ff; --info-bg: #1a2442; --bar: #232833;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif; }
+  header { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between; padding: 18px 28px; border-bottom: 1px solid var(--line); }
+  .brand { display: flex; align-items: baseline; gap: 12px; }
+  .brand b { font-size: 26px; letter-spacing: -0.02em; }
+  .brand b span { color: var(--accent); }
+  .brand small { color: var(--muted); font-size: 14px; }
+  .rails { display: flex; flex-wrap: wrap; gap: 8px; }
+  .rail { font-size: 12px; padding: 5px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); color: var(--muted); }
+  .rail i { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; background: var(--good); vertical-align: middle; }
+  .rail.off i { background: var(--warn); }
+  main { display: grid; grid-template-columns: minmax(320px, 420px) 1fr; gap: 24px; padding: 24px 28px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; padding: 16px; } header { padding: 16px; } }
+  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0 0 12px; font-weight: 600; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; margin-bottom: 16px; }
+  .row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .name { font-weight: 650; font-size: 17px; }
+  .addr { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .badge { font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; letter-spacing: 0.02em; }
+  .NET_30 { background: var(--good-bg); color: var(--good); }
+  .NET_7 { background: var(--warn-bg); color: var(--warn); }
+  .PREPAY { background: var(--bad-bg); color: var(--bad); }
+  .limit { margin: 16px 0 6px; display: flex; align-items: baseline; gap: 10px; }
+  .limit .big { font-size: 34px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; transition: color .4s; }
+  .limit .lbl { color: var(--muted); font-size: 13px; }
+  .bar { position: relative; height: 10px; background: var(--bar); border-radius: 999px; overflow: hidden; }
+  .bar .used { position: absolute; inset: 0 auto 0 0; background: var(--accent); border-radius: 999px; transition: width .6s ease; }
+  .legend { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-top: 6px; font-variant-numeric: tabular-nums; }
+  dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 16px 0 0; font-size: 13px; }
+  dt { color: var(--muted); }
+  dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+  .why { margin: 14px 0 0; padding: 0; list-style: none; font-size: 13px; }
+  .why li { padding: 6px 0; border-top: 1px dashed var(--line); color: var(--muted); }
+  .why li b { color: var(--ink); font-weight: 600; }
+  .tag { font-size: 11px; padding: 2px 7px; border-radius: 6px; background: var(--warn-bg); color: var(--warn); }
+  .tag.t0 { background: var(--info-bg); color: var(--info); }
+  .timeline { list-style: none; margin: 0; padding: 0; }
+  .ev { display: grid; grid-template-columns: 70px 110px 1fr; gap: 12px; align-items: start; padding: 12px 14px; border-bottom: 1px solid var(--line); background: var(--panel); }
+  .ev:first-child { border-radius: 14px 14px 0 0; }
+  .ev.new { animation: arrive .8s ease; }
+  @keyframes arrive { from { background: var(--info-bg); transform: translateY(-6px); opacity: 0; } to { transform: none; opacity: 1; } }
+  .ev time { font-family: var(--mono); font-size: 12px; color: var(--muted); padding-top: 2px; }
+  .pill { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding: 3px 8px; border-radius: 6px; justify-self: start; }
+  .p-decision { background: var(--info-bg); color: var(--info); }
+  .p-order { background: var(--bar); color: var(--ink); }
+  .p-collect { background: var(--good-bg); color: var(--good); }
+  .p-collect_refused, .p-escalate { background: var(--bad-bg); color: var(--bad); }
+  .p-credit, .p-dispute { background: var(--warn-bg); color: var(--warn); }
+  .ev .sum { font-size: 14px; }
+  .ev a { font-family: var(--mono); font-size: 12px; color: var(--info); text-decoration: none; display: inline-block; margin-top: 4px; }
+  .ev a:hover { text-decoration: underline; }
+  .empty { color: var(--muted); padding: 24px; text-align: center; background: var(--panel); border: 1px dashed var(--line); border-radius: 14px; }
+  footer { padding: 0 28px 24px; color: var(--muted); font-size: 12px; }
+  @media (max-width: 600px) { .ev { grid-template-columns: 1fr; gap: 4px; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><b>TAB<span>.</span></b><small>Net terms for AI agents · Northwind Data supplier desk</small></div>
+  <div class="rails" id="rails">
+    <span class="rail"><i></i>Metal testnet · debit mandates</span>
+    <span class="rail"><i></i>Visa Intelligent Commerce via Airi</span>
+    <span class="rail"><i></i>Airwallex sandbox · FX + payments</span>
+    <span class="rail off" id="booksRail"><i></i>Books: stand-in (T:0 pending)</span>
+  </div>
+</header>
+<main>
+  <section><h2>Buyer agents on credit</h2><div id="buyers"><div class="empty">Waiting for the desk…</div></div></section>
+  <section><h2>What the desk decided · live</h2><ul class="timeline" id="timeline"></ul><div class="empty" id="noEvents">No events yet.</div></section>
+</main>
+<footer id="foot"></footer>
+<script>
+const usd = (c) => (c == null ? "—" : "$" + (c / 100).toFixed(2));
+const esc = (s) => String(s).replace(/[&<>"]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m]));
+const short = (a) => (a ? a.slice(0, 6) + "…" + a.slice(-4) : "");
+const EXPLORER = "https://testnet.metalntwx.com/tx/";
+const REASON = {
+  NET_30_EARNED: "Earned net-30", NET_7_DEFAULT: "Net-7 (thin history)", LIMIT_BY_TERMS_CAP: "Capped by terms",
+  LIMIT_BY_MANDATE_HEADROOM: "Capped by the mandate its human signed", LIMIT_BY_ONCHAIN_BALANCE: "Capped by on-chain balance",
+  LIMIT_TIGHTENED: "Limit tightened", DEMOTED_TO_PREPAY: "Demoted to prepay", COLLECT_ALL: "Collect everything now",
+  COLLECT_EXCESS: "Collect the excess", ESCALATE_UNCOLLECTABLE: "Send to a person", OVERDUE_INVOICE: "Overdue in the books",
+  NO_VIC_HISTORY: "No Visa-verified payment yet", NO_MANDATE: "No debit mandate", MANDATE_REVOKED: "Mandate revoked",
+  MANDATE_EXPIRED: "Mandate expired", SUPPLIER_NOT_PAYEE: "Mandate doesn't name us",
+};
+
+function renderBuyers(buyers) {
+  const el = document.getElementById("buyers");
+  if (!buyers.length) { el.innerHTML = '<div class="empty">No buyers yet.</div>'; return; }
+  const src = buyers.find((b) => b.booksSource)?.booksSource;
+  const rail = document.getElementById("booksRail");
+  if (src === "t0") { rail.classList.remove("off"); rail.innerHTML = "<i></i>Books: T:0"; }
+  el.innerHTML = buyers.map((b) => {
+    const used = b.limit > 0 ? Math.min(100, (Math.max(0, b.outstanding) / b.limit) * 100) : 0;
+    const m = b.mandate;
+    return `<div class="card">
+      <div class="row"><div><div class="name">${esc(b.name)}</div><div class="addr">${esc(short(b.account))}</div></div>
+        <span class="badge ${esc(b.terms)}">${esc(String(b.terms).replace("_", "-"))}</span></div>
+      <div class="limit"><span class="big">${usd(b.limit)}</span><span class="lbl">tab limit</span></div>
+      <div class="bar"><div class="used" style="width:${used}%"></div></div>
+      <div class="legend"><span>${usd(Math.max(0, b.outstanding))} owed · ${b.openOrders} open order(s)</span><span>${usd(b.available)} available</span></div>
+      <dl>
+        <dt>Debit mandate</dt><dd>${m ? `${usd(m.spent)} of ${usd(m.budget)} pulled${m.revoked ? " · <b>revoked</b>" : ""}` : "none"}</dd>
+        <dt>On-chain balance</dt><dd>${b.balance == null ? "—" : usd(b.balance) + " USDZ"}</dd>
+        ${b.creditBalance ? `<dt>Credit owed to buyer</dt><dd>${usd(b.creditBalance)}</dd>` : ""}
+        <dt>Books</dt><dd>${b.booksSource === "t0" ? '<span class="tag t0">T:0</span>' : '<span class="tag">stand-in</span>'}</dd>
+      </dl>
+      <ul class="why">${b.reasons.slice(0, 4).map((r) => `<li><b>${esc(REASON[r.code] ?? r.code)}</b> · ${esc(r.detail)}</li>`).join("")}</ul>
+    </div>`;
+  }).join("");
+}
+
+function eventRow(e, fresh) {
+  const t = new Date(e.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const tx = e.data && e.data.tx ? `<br><a href="${EXPLORER}${esc(e.data.tx)}" target="_blank" rel="noopener">tx ${esc(short(e.data.tx))} ↗</a>` : "";
+  return `<li class="ev${fresh ? " new" : ""}"><time>${t}</time><span class="pill p-${esc(e.type)}">${esc(e.type.replace("_", " "))}</span><div class="sum">${esc(e.summary)}${tx}</div></li>`;
+}
+
+let lastSeq = 0;
+function addEvents(events, fresh) {
+  if (!events.length) return;
+  document.getElementById("noEvents").style.display = "none";
+  const tl = document.getElementById("timeline");
+  tl.insertAdjacentHTML("afterbegin", events.slice().reverse().map((e) => eventRow(e, fresh)).join(""));
+  lastSeq = Math.max(lastSeq, ...events.map((e) => e.seq));
+}
+
+fetch("/api/state").then((r) => r.json()).then((s) => {
+  renderBuyers(s.buyers);
+  addEvents(s.events, false);
+  document.getElementById("foot").textContent = `Desk log: ${s.deskFile}. Chain data is live Metal testnet; card and FX are the Airwallex sandbox.`;
+  const es = new EventSource(`/api/stream?after=${lastSeq}`);
+  es.onmessage = (m) => { const d = JSON.parse(m.data); renderBuyers(d.buyers); addEvents(d.events, true); };
+});
+</script>
+</body>
+</html>

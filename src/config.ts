@@ -20,7 +20,13 @@ const Env = z.object({
   T0_API_KEY: z.string().optional(),
 
   ANTHROPIC_API_KEY: z.string().optional(),
-  ANTHROPIC_MODEL: z.string().default("claude-opus-5-5"),
+  /** "bedrock" (default; AWS credential chain) or "anthropic" (ANTHROPIC_API_KEY). */
+  CLAUDE_PROVIDER: z.enum(["bedrock", "anthropic"]).default("bedrock"),
+  BEDROCK_REGION: z.string().default("us-west-2"),
+  /** Defaults per provider: anthropic.claude-opus-5-5 on Bedrock, claude-opus-5-5 on the Claude API. */
+  CLAUDE_MODEL: z.string().optional(),
+  /** Bedrock only: client-side refusal fallback model (no server-side `fallbacks` there). Empty disables it. */
+  CLAUDE_FALLBACK_MODEL: z.string().default("anthropic.claude-opus-4-8"),
 });
 
 export type Config = z.infer<typeof Env>;
