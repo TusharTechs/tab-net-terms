@@ -100,17 +100,26 @@ async function pay(statementId: string) {
     const cvc = c.cvv ?? c.cvc ?? c.securityCode;
     if (!number || !expiryMonth || !expiryYear || !cvc) throw new Error("credential file is missing a field; see credential-shape above");
 
-    const confirmed = await awx.post<{ id: string; status: string; latest_payment_attempt?: { status?: string; payment_method?: unknown } }>(
-      `/pa/payment_intents/${s.paymentIntentId}/confirm`,
-      {
-        request_id: newRequestId(),
-        payment_method: { type: "card", card: { number: String(number), expiry_month: expiryMonth, expiry_year: expiryYear, cvc: String(cvc), name: "Acme Procurement" } },
-        payment_method_options: { card: { auto_capture: true } },
-      },
-    );
-    console.log(JSON.stringify({ step: "confirm", paymentIntent: confirmed.id, status: confirmed.status, attempt: confirmed.latest_payment_attempt?.status }));
-    if (confirmed.status === "SUCCEEDED") result = "SUCCEEDED";
-    else reason = `payment intent ${confirmed.status}`;
+    // Authorise only. Nothing is captured until the authorised amount matches the statement.
+    type PI = { id: string; status: string; amount: number; captured_amount?: number; latest_payment_attempt?: { status?: string; authorization_code?: string } };
+    const authorised = await awx.post<PI>(`/pa/payment_intents/${s.paymentIntentId}/confirm`, {
+      request_id: newRequestId(),
+      payment_method: { type: "card", card: { number: String(number), expiry_month: expiryMonth, expiry_year: expiryYear, cvc: String(cvc), name: "Acme Procurement" } },
+      payment_method_options: { card: { auto_capture: false, authorization_type: "pre_auth" } },
+    });
+    console.log(JSON.stringify({ step: "authorise", paymentIntent: authorised.id, status: authorised.status, amount: authorised.amount, attempt: authorised.latest_payment_attempt?.status }));
+
+    if (authorised.status !== "REQUIRES_CAPTURE") {
+      reason = `payment intent ${authorised.status}`;
+    } else if (fromMajor(String(authorised.amount)) !== fromMajor(s.total)) {
+      const voided = await awx.post<PI>(`/pa/payment_intents/${s.paymentIntentId}/cancel`, { request_id: newRequestId(), cancellation_reason: "amount does not match statement" });
+      reason = `authorised ${authorised.amount} ≠ statement ${s.total}; voided (${voided.status})`;
+    } else {
+      const captured = await awx.post<PI>(`/pa/payment_intents/${s.paymentIntentId}/capture`, { request_id: newRequestId(), amount: Number(s.total) });
+      console.log(JSON.stringify({ step: "capture", paymentIntent: captured.id, status: captured.status, captured: captured.captured_amount ?? captured.amount }));
+      if (captured.status === "SUCCEEDED") result = "SUCCEEDED";
+      else reason = `capture left intent ${captured.status}`;
+    }
   } catch (e) {
     reason = e instanceof Error ? e.message.slice(0, 180) : String(e);
     console.log(JSON.stringify({ step: "confirm-error", reason }));
