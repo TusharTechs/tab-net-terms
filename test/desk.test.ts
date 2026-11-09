@@ -52,8 +52,9 @@ describe("Desk", () => {
 
     mandate.budget = 25_000; // buyer's human replaces the mandate with a lower budget
     const d = await desk.evaluate("acme");
-    expect(d.limit).toBe(25_000);
-    expect(d.collectNow).toBe(18_000);
+    const cut = state.events.find((e) => e.type === "decision" && e.summary.includes("limit $250.00"))!;
+    expect((cut.data as any).decision.collectNow).toBe(18_000);
+    expect(d.limit).toBe(7_000); // re-read after the pull: 25,000 budget − 18,000 spent
     expect(mandate.pulls).toEqual([{ amount: 18_000, paymentId: batchPaymentId("acme", [{ id: "o1", amount: 6_000 }, { id: "o2", amount: 7_000 }, { id: "o3", amount: 5_000 }]) }]);
     expect(state.buyers.acme!.orders.every((o) => o.collectedBy === "0xtx1")).toBe(true);
     expect(state.events.some((e) => e.type === "collect" && e.summary.includes("$180.00"))).toBe(true);
@@ -136,6 +137,27 @@ describe("Desk", () => {
     expect(state.events.find((e) => e.type === "dispute")!.summary).toMatch(/\$0\.28 credited, 1 claim\(s\) upheld/);
   });
 
+  it("after a collection the desk re-reads, so the latest decision reflects the pull", async () => {
+    const { desk, mandate, state } = setup();
+    await desk.placeOrder("acme", { id: "o1", amount: 1_800, description: "q" });
+    mandate.budget = 2_500;
+    const d = await desk.evaluate("acme");
+    expect(mandate.spent).toBe(1_800);
+    expect(d.limit).toBe(700); // headroom after the pull
+    const last = state.events.filter((e) => e.type === "decision").at(-1)!;
+    expect((last.data as any).inputs.mandate.spent).toBe(1_800);
+  });
+
+  it("logs a decision only when terms, limit or availability change", async () => {
+    const { desk, mandate, state } = setup();
+    await desk.evaluate("acme");
+    await desk.evaluate("acme");
+    expect(state.events.filter((e) => e.type === "decision")).toHaveLength(1);
+    mandate.budget = 50_000;
+    await desk.evaluate("acme");
+    expect(state.events.filter((e) => e.type === "decision")).toHaveLength(2);
+  });
+
   it("re-running a collection for the same orders pays at most once", async () => {
     const { desk, mandate } = setup();
     await desk.placeOrder("acme", { id: "o1", amount: 4_000, description: "data" });
@@ -147,6 +169,6 @@ describe("Desk", () => {
     desk.state.buyers.acme!.previous = { terms: "NET_30", limit: 90_000 };
     await desk.evaluate("acme");
     expect(mandate.spent).toBe(spentAfterFirst);
-    expect(desk.state.events.at(-1)!.summary).toMatch(/already paid earlier/);
+    expect(desk.state.events.filter((e) => e.type === "collect").at(-1)!.summary).toMatch(/already paid earlier/);
   });
 });

@@ -70,7 +70,9 @@
   .p-order { background: var(--bar); color: var(--ink); }
   .p-collect { background: var(--good-bg); color: var(--good); }
   .p-collect_refused, .p-escalate { background: var(--bad-bg); color: var(--bad); }
-  .p-credit, .p-dispute { background: var(--warn-bg); color: var(--warn); }
+  .p-credit, .p-dispute, .p-books { background: var(--warn-bg); color: var(--warn); }
+  .p-vic, .p-mandate, .p-settle { background: var(--good-bg); color: var(--good); }
+  .ids { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-top: 4px; }
   .ev .sum { font-size: 14px; }
   .ev a { font-family: var(--mono); font-size: 12px; color: var(--info); text-decoration: none; display: inline-block; margin-top: 4px; }
   .ev a:hover { text-decoration: underline; }
@@ -136,8 +138,13 @@ function renderBuyers(buyers) {
 
 function eventRow(e, fresh) {
   const t = new Date(e.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-  const tx = e.data && e.data.tx ? `<br><a href="${EXPLORER}${esc(e.data.tx)}" target="_blank" rel="noopener">tx ${esc(short(e.data.tx))} ↗</a>` : "";
-  return `<li class="ev${fresh ? " new" : ""}"><time>${t}</time><span class="pill p-${esc(e.type)}">${esc(e.type.replace("_", " "))}</span><div class="sum">${esc(e.summary)}${tx}</div></li>`;
+  const d = e.data || {};
+  const chainTx = d.tx || d.metalTx;
+  const tx = chainTx ? `<br><a href="${EXPLORER}${esc(chainTx)}" target="_blank" rel="noopener">Metal tx ${esc(short(chainTx))} ↗</a>` : "";
+  const awx = [d.paymentIntentId && `payment ${d.paymentIntentId}`, d.depositId && `deposit ${short(d.depositId)}`, d.conversionId && `conversion ${short(d.conversionId)}`, d.model && `read by ${d.model}`].filter(Boolean);
+  const ids = awx.length ? `<div class="ids">${esc(awx.join(" · "))}</div>` : "";
+  const label = { vic: "Visa VIC", collect_refused: "refused", settle: "Airwallex" }[e.type] ?? e.type.replace("_", " ");
+  return `<li class="ev${fresh ? " new" : ""}"><time>${t}</time><span class="pill p-${esc(e.type)}">${esc(label)}</span><div class="sum">${esc(e.summary)}${tx}${ids}</div></li>`;
 }
 
 let lastSeq = 0;

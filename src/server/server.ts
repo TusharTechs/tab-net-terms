@@ -10,7 +10,7 @@ import type { DeskEvent, DeskState } from "../desk/desk.js";
  */
 
 const PORT = Number(process.env.PORT ?? 4173);
-const DESK_FILE = resolve(process.env.DESK_FILE ?? "data/desk-hook.json");
+const DESK_FILE = resolve(process.env.DESK_FILE ?? "data/desk-demo.json");
 const PUBLIC = resolve("public");
 const TYPES: Record<string, string> = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml" };
 

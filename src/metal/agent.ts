@@ -134,6 +134,28 @@ export class MetalAgent {
     return { mandateId: one.mandate ?? "", mandateKeyFile: (one["mandate-key-file"] ?? "").split(" ")[0]! };
   }
 
+  /** Creates (or names, if it exists) the owner's smart account. The owner key is funded for gas from the faucet. */
+  async createAccount(ownerKey: string, existing: boolean) {
+    const r = await this.runner(["account", "create", existing ? "--key" : "--out", ownerKey, ...net(this.network)]);
+    const { one } = parseKv(r.stdout);
+    if (!one.account) throw new Error(`account create failed: ${r.stdout.trim().slice(0, 300)}`);
+    return { account: one.account, owner: one.owner ?? "", tx: one.transaction };
+  }
+
+  /** Testnet faucet; waits out its per-client rate limit (it says how long) up to `tries` times. */
+  async fund(address: string, tries = 4): Promise<{ tx: string }> {
+    for (let i = 0; ; i++) {
+      try {
+        const r = await this.runner(["fund", address, ...net(this.network)]);
+        return { tx: parseKv(r.stdout).one.transaction ?? "" };
+      } catch (e) {
+        const wait = /retry in (\d+) s/.exec(String(e));
+        if (!wait || i >= tries) throw e;
+        await new Promise((res) => setTimeout(res, (Number(wait[1]) + 2) * 1000));
+      }
+    }
+  }
+
   /** Buyer's owner binds (or replaces) a supplier-issued credential, trusting only that supplier's issuer. */
   async bind(p: { credential: string; ownerKey: string; issuerPublic: string; replaces?: string }) {
     const args = p.replaces

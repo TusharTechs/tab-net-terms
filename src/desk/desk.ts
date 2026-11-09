@@ -53,7 +53,7 @@ export interface DeskEvent {
   seq: number;
   at: string;
   buyerId: string;
-  type: "order" | "decision" | "collect" | "collect_refused" | "escalate" | "credit" | "dispute";
+  type: "order" | "decision" | "collect" | "collect_refused" | "escalate" | "credit" | "dispute" | "vic" | "mandate" | "books" | "settle";
   summary: string;
   data: Record<string, unknown>;
 }
@@ -103,8 +103,11 @@ export class Desk {
     return b;
   }
 
-  /** Re-reads mandate, balance and books, decides, and collects if the decision says so. */
-  async evaluate(buyerId: string): Promise<CreditDecision> {
+  /**
+   * Re-reads mandate, balance and books, decides, and collects if the decision says so.
+   * After a collection it re-reads once, so the log (and the screen) shows the state after the pull.
+   */
+  async evaluate(buyerId: string, afterCollect = false): Promise<CreditDecision> {
     const b = this.buyer(buyerId);
     const mandate = b.credential ? await this.deps.metal.status(b.credential) : undefined;
     const [balance, invoices] = await Promise.all([this.deps.balanceOf(b.account), this.deps.books.invoicesFor(b.id)]);
@@ -115,15 +118,20 @@ export class Desk {
       this.deps.policy ?? DEFAULT_POLICY,
       b.previous,
     );
-    this.emit(b.id, "decision", `${decision.terms} · limit ${usd(decision.limit)} · available ${usd(decision.available)}`, {
+    const summary = `${decision.terms} · limit ${usd(decision.limit)} · available ${usd(decision.available)}`;
+    const lastDecision = [...this.state.events].reverse().find((e) => e.buyerId === b.id && e.type === "decision");
+    const unchanged = lastDecision?.summary === summary && decision.collectNow === 0 && decision.escalate === 0;
+    if (!unchanged) this.emit(b.id, "decision", summary, {
       decision,
       inputs: { mandate: mandate && { id: mandate.mandateId, budget: mandate.budget, spent: mandate.spent, revoked: mandate.revoked }, balance, booksSource: this.deps.books.source, invoices: invoices.length },
     });
     b.previous = { terms: decision.terms, limit: decision.limit };
 
-    if (decision.collectNow > 0 && b.credential && b.mandateKeyFile) await this.collect(b, decision.collectNow);
+    let collected = false;
+    if (decision.collectNow > 0 && b.credential && b.mandateKeyFile) collected = await this.collect(b, decision.collectNow);
     if (decision.escalate > 0) this.emit(b.id, "escalate", `${usd(decision.escalate)} cannot be pulled from the mandate; sent to a person`, { amount: decision.escalate });
     this.deps.persist?.(this.state);
+    if (collected && !afterCollect) return this.evaluate(buyerId, true);
     return decision;
   }
 
@@ -131,7 +139,7 @@ export class Desk {
    * Collects `amount` (net of any credit owed to the buyer) against the oldest open orders.
    * The payment-id names exactly those orders and the credit applied.
    */
-  private async collect(b: Buyer, amount: Cents) {
+  private async collect(b: Buyer, amount: Cents): Promise<boolean> {
     const credit = b.creditBalance ?? 0;
     const batch: Order[] = [];
     let gross = 0;
@@ -140,7 +148,7 @@ export class Desk {
       batch.push(o);
       gross += dueOn(o);
     }
-    if (batch.length === 0) return;
+    if (batch.length === 0) return false;
     const applied = Math.min(credit, gross);
     const net = gross - applied;
     const paymentId = batchPaymentId(b.id, batch.map((o) => ({ id: o.id, amount: dueOn(o) })), applied);
@@ -149,7 +157,7 @@ export class Desk {
       for (const o of batch) o.collectedBy = `credit:${paymentId.slice(0, 18)}`;
       b.creditBalance = credit - applied;
       this.emit(b.id, "collect", `${batch.length} order(s) settled entirely from credit (${usd(applied)})`, { paymentId, orders: batch.map((o) => o.id), amount: 0, creditApplied: applied });
-      return;
+      return true;
     }
     const res = await this.deps.metal.pull({ credential: b.credential!, mandateKeyFile: b.mandateKeyFile!, to: this.deps.supplierPayee, amount: net, paymentId });
     if (res.outcome === "paid") {
@@ -157,11 +165,14 @@ export class Desk {
       b.creditBalance = credit - applied;
       const creditNote = applied ? ` after ${usd(applied)} credit` : "";
       this.emit(b.id, "collect", `collected ${usd(net)} for ${batch.length} order(s)${creditNote}${res.alreadyPaid ? " (already paid earlier)" : ""}`, { tx: res.tx, paymentId, orders: batch.map((o) => o.id), amount: net, creditApplied: applied });
-    } else if (res.outcome === "refused") {
+      return true;
+    }
+    if (res.outcome === "refused") {
       this.emit(b.id, "collect_refused", `pull of ${usd(net)} refused: ${res.reason}`, { reason: res.reason, detail: res.detail, paymentId, amount: net });
     } else {
       this.emit(b.id, "collect_refused", `pull of ${usd(net)} ${res.outcome}`, { outcome: res.outcome, paymentId, amount: net });
     }
+    return false;
   }
 
   /** An agent order arrives. It goes on the tab only if it fits; otherwise prepay (VIC ≤ $200, else invoice). */
@@ -208,6 +219,31 @@ export class Desk {
     this.emit(buyerId, "dispute", `dispute resolved: ${usd(credited)} credited, ${upheld} claim(s) upheld with proof, ${escalated} to a person`, { ...meta, findings: decision.findings });
     if (escalated) this.emit(buyerId, "escalate", `${escalated} dispute claim(s) need a person`, { findings: decision.findings.filter((f) => f.verdict === "escalate") });
     this.deps.persist?.(this.state);
+  }
+
+  /** A passkey-approved VIC payment from this buyer settled at the supplier's checkout: the on-ramp to credit. */
+  recordVicPayment(buyerId: string, p: { paymentIntentId: string; mandateId: string; amount: Cents; statementId: string }) {
+    const b = this.buyer(buyerId);
+    b.vicSettledCount += 1;
+    this.emit(b.id, "vic", `Visa-verified payment ${usd(p.amount)} settled (statement ${p.statementId}) → eligible for terms`, p);
+  }
+
+  /** The buyer's human bound (or replaced) a debit mandate naming this supplier. */
+  recordMandate(buyerId: string, p: { credential: string; mandateKeyFile: string; mandateId: string; tx: string; budget: Cents; replaced?: boolean }) {
+    const b = this.buyer(buyerId);
+    b.credential = p.credential;
+    b.mandateKeyFile = p.mandateKeyFile;
+    this.emit(b.id, "mandate", `${p.replaced ? "buyer's human replaced the mandate" : "buyer's human bound a debit mandate"}: budget ${usd(p.budget)}`, { mandateId: p.mandateId, tx: p.tx, budget: p.budget });
+  }
+
+  /** Something changed in the books (from T:0 or the stand-in). */
+  recordBooks(buyerId: string, summary: string, data: Record<string, unknown> = {}) {
+    this.emit(buyerId, "books", summary, data);
+  }
+
+  /** Money collected on Metal was settled into Airwallex. */
+  recordSettlement(buyerId: string, summary: string, data: Record<string, unknown>) {
+    this.emit(buyerId, "settle", summary, data);
   }
 
   /** The desk's own evidence for each order, used to decide disputes. */
