@@ -42,6 +42,7 @@ export function summarize(state: DeskState) {
       mandate: last?.inputs?.mandate ?? null,
       balance: last?.inputs?.balance ?? null,
       booksSource: last?.inputs?.booksSource ?? null,
+      statements: (b.statements ?? []).map((s) => ({ id: s.id, total: s.total, status: s.status, dueAt: s.dueAt, graceEndsAt: s.graceEndsAt, refusals: s.refusals.length, collectedTx: s.collectedTx ?? null })),
     };
   });
 }

@@ -71,7 +71,26 @@
   .p-collect { background: var(--good-bg); color: var(--good); }
   .p-collect_refused, .p-escalate { background: var(--bad-bg); color: var(--bad); }
   .p-credit, .p-dispute, .p-books { background: var(--warn-bg); color: var(--warn); }
-  .p-vic, .p-mandate, .p-settle { background: var(--good-bg); color: var(--good); }
+  .p-vic, .p-mandate, .p-settle, .p-statement { background: var(--good-bg); color: var(--good); }
+  .p-refused { background: var(--bad-bg); color: var(--bad); }
+  .p-agent { background: var(--info-bg); color: var(--info); }
+  .p-proof { background: var(--ink); color: var(--bg); }
+  .ev.agent .sum { font-style: italic; border-left: 3px solid var(--info); padding-left: 10px; }
+  .who { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; display: block; margin-bottom: 2px; }
+  .proof { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; margin-bottom: 16px; }
+  .proof .head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .proof .head b { font-size: 18px; }
+  .proof .ok { color: var(--good); } .proof .bad { color: var(--bad); }
+  .proof ul { list-style: none; margin: 10px 0 0; padding: 0; font-size: 13px; }
+  .proof li { padding: 4px 0; break-inside: avoid; }
+  .proof details { font-size: 13px; padding: 4px 0; }
+  .proof summary { cursor: pointer; }
+  .proof details ul { columns: 1; margin: 4px 0 6px 20px; }
+  .proof li small { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .stmts { margin: 12px 0 0; font-size: 13px; }
+  .stmt { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-top: 1px dashed var(--line); }
+  .stmt .st { font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 6px; }
+  .st.accepted { background: var(--info-bg); color: var(--info); } .st.collected { background: var(--good-bg); color: var(--good); } .st.unpaid { background: var(--bad-bg); color: var(--bad); }
   .ids { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-top: 4px; }
   .ev .sum { font-size: 14px; }
   .ev a { font-family: var(--mono); font-size: 12px; color: var(--info); text-decoration: none; display: inline-block; margin-top: 4px; }
@@ -85,6 +104,7 @@
 <header>
   <div class="brand"><b>TAB<span>.</span></b><small>Net terms for AI agents · Northwind Data supplier desk</small></div>
   <div class="rails" id="rails">
+    <span class="rail"><i></i>Claude · buyer agents + dispute reading</span>
     <span class="rail"><i></i>Metal testnet · debit mandates</span>
     <span class="rail"><i></i>Visa Intelligent Commerce via Airi</span>
     <span class="rail"><i></i>Airwallex sandbox · FX + payments</span>
@@ -93,7 +113,7 @@
 </header>
 <main>
   <section><h2>Buyer agents on credit</h2><div id="buyers"><div class="empty">Waiting for the desk…</div></div></section>
-  <section><h2>What the desk decided · live</h2><ul class="timeline" id="timeline"></ul><div class="empty" id="noEvents">No events yet.</div></section>
+  <section><div id="proof"></div><h2>What the desk decided · live</h2><ul class="timeline" id="timeline"></ul><div class="empty" id="noEvents">No events yet.</div></section>
 </main>
 <footer id="foot"></footer>
 <script>
@@ -110,7 +130,9 @@ const REASON = {
   MANDATE_EXPIRED: "Mandate expired", SUPPLIER_NOT_PAYEE: "Mandate doesn't name us",
 };
 
+const NAMES = {};
 function renderBuyers(buyers) {
+  buyers.forEach((b) => { NAMES[b.id] = b.name; });
   const el = document.getElementById("buyers");
   if (!buyers.length) { el.innerHTML = '<div class="empty">No buyers yet.</div>'; return; }
   const srcs = new Set(buyers.map((b) => b.booksSource).filter(Boolean));
@@ -131,6 +153,7 @@ function renderBuyers(buyers) {
         ${b.creditBalance ? `<dt>Credit owed to buyer</dt><dd>${usd(b.creditBalance)}</dd>` : ""}
         <dt>Books</dt><dd>${b.booksSource === "t0" ? '<span class="tag t0">T:0</span>' : '<span class="tag">stand-in</span>'}</dd>
       </dl>
+      ${(b.statements || []).length ? `<div class="stmts">${b.statements.map((s) => `<div class="stmt"><span>Statement ${esc(s.id)} · ${usd(s.total)}${s.refusals ? ` · ${s.refusals} refused on chain` : ""}</span><span class="st ${esc(s.status)}">${esc(s.status)}</span></div>`).join("")}</div>` : ""}
       <ul class="why">${b.reasons.slice(0, 4).map((r) => `<li><b>${esc(REASON[r.code] ?? r.code)}</b> · ${esc(r.detail)}</li>`).join("")}</ul>
     </div>`;
   }).join("");
@@ -143,8 +166,33 @@ function eventRow(e, fresh) {
   const tx = chainTx ? `<br><a href="${EXPLORER}${esc(chainTx)}" target="_blank" rel="noopener">Metal tx ${esc(short(chainTx))} ↗</a>` : "";
   const awx = [d.paymentIntentId && `payment ${d.paymentIntentId}`, d.depositId && `deposit ${short(d.depositId)}`, d.conversionId && `conversion ${short(d.conversionId)}`, d.journalEntryId && `T:0 journal ${d.journalEntryId}`, d.model && `read by ${d.model}`].filter(Boolean);
   const ids = awx.length ? `<div class="ids">${esc(awx.join(" · "))}</div>` : "";
-  const label = { vic: "Visa VIC", collect_refused: "refused", settle: "Airwallex" }[e.type] ?? e.type.replace("_", " ");
-  return `<li class="ev${fresh ? " new" : ""}"><time>${t}</time><span class="pill p-${esc(e.type)}">${esc(label)}</span><div class="sum">${esc(e.summary)}${tx}${ids}</div></li>`;
+  const label = { vic: "Visa VIC", collect_refused: "refused", settle: "Airwallex", agent: "buyer agent", proof: "proof" }[e.type] ?? e.type.replace("_", " ");
+  const who = e.buyerId && e.buyerId !== "desk" ? `<span class="who">${esc(NAMES[e.buyerId] ?? e.buyerId)}</span>` : "";
+  return `<li class="ev ${esc(e.type)}${fresh ? " new" : ""}"><time>${t}</time><span class="pill p-${esc(e.type)}">${esc(label)}</span><div class="sum">${who}${esc(e.summary)}${tx}${ids}</div></li>`;
+}
+
+function renderProof(e) {
+  const checks = (e.data && e.data.checks) || [];
+  const breaks = checks.filter((c) => !c.ok).length;
+  document.getElementById("proof").innerHTML = `<div class="proof"><div class="head"><b>Every dollar proven</b><span class="${breaks ? "bad" : "ok"}">${checks.length - breaks}/${checks.length} checks pass${breaks ? ` · ${breaks} break(s)` : ""}</span></div>
+    ${proofGroups(checks)}</div>`;
+}
+
+const checkLi = (c) => `<li><span class="${c.ok ? "ok" : "bad"}">${c.ok ? "✔" : "✘"}</span> ${esc(c.name)}<br><small>${esc(c.detail)}</small></li>`;
+function proofGroups(checks) {
+  // Per-buyer book checks fold into one line each (open it to see them); live checks show in full.
+  const groups = new Map();
+  const live = [];
+  for (const c of checks) {
+    const m = /^([a-z0-9-]+): (.*)$/.exec(c.name);
+    if (m && NAMES[m[1]]) (groups.get(m[1]) || groups.set(m[1], []).get(m[1])).push({ ...c, name: m[2] });
+    else live.push(c);
+  }
+  const g = [...groups.entries()].map(([id, cs]) => {
+    const bad = cs.filter((c) => !c.ok).length;
+    return `<details${bad ? " open" : ""}><summary><span class="${bad ? "bad" : "ok"}">${bad ? "✘" : "✔"}</span> ${esc(NAMES[id])} books · ${cs.length - bad}/${cs.length}</summary><ul>${cs.map(checkLi).join("")}</ul></details>`;
+  }).join("");
+  return `<div class="groups">${g}</div><ul>${live.map(checkLi).join("")}</ul>`;
 }
 
 let lastSeq = 0;
@@ -154,6 +202,8 @@ function addEvents(events, fresh) {
   const tl = document.getElementById("timeline");
   tl.insertAdjacentHTML("afterbegin", events.slice().reverse().map((e) => eventRow(e, fresh)).join(""));
   lastSeq = Math.max(lastSeq, ...events.map((e) => e.seq));
+  const proof = events.filter((e) => e.type === "proof").at(-1);
+  if (proof) renderProof(proof);
 }
 
 fetch("/api/state").then((r) => r.json()).then((s) => {

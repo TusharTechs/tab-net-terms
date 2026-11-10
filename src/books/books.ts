@@ -166,7 +166,20 @@ export class T0Mcp {
     private readonly url = "",
   ) {}
 
-  async call<T = unknown>(tool: string, args: Record<string, unknown> = {}): Promise<T> {
+  /** Retries only T:0's "another write is in progress" (409 CAPI02) and 429/5xx; every other error passes through. */
+  async call<T = unknown>(tool: string, args: Record<string, unknown> = {}, attempts = 4): Promise<T> {
+    for (let i = 1; ; i++) {
+      try {
+        return await this.callOnce<T>(tool, args);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (i >= attempts || !/: (409 CAPI02|429|5\d\d)\b/.test(msg)) throw e;
+        await new Promise((r) => setTimeout(r, 500 * 2 ** i));
+      }
+    }
+  }
+
+  private async callOnce<T>(tool: string, args: Record<string, unknown>): Promise<T> {
     const res = await fetch(this.url, {
       method: "POST",
       headers: { "content-type": "application/json", accept: "application/json, text/event-stream", Authorization: `Bearer ${this.apiKey}` },

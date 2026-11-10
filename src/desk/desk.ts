@@ -6,6 +6,7 @@ import { type CreditDecision, type CreditPolicy, DEFAULT_POLICY, evaluateCredit,
 import type { Cents } from "../domain/money.js";
 import type { DisputeDecision, OrderEvidence } from "../disputes/decide.js";
 import type { MandateStatus, PullOutcome } from "../metal/agent.js";
+import { CATALOG, type PaymentOption, quote } from "../terms/offers.js";
 
 /**
  * The supplier's desk: it takes agent orders, keeps each buyer's tab, re-evaluates credit
@@ -29,6 +30,13 @@ export interface Order {
   staleUnits?: number;
   /** Credit notes applied to this order while still uncollected. */
   credited?: Cents;
+  /** Agent orders: what was bought and on which terms. */
+  productId?: string;
+  option?: PaymentOption;
+  /** When payment is due (ISO). Net-30 / pay-in-10 orders. */
+  dueAt?: string;
+  /** Discount off list taken for early payment (fraction). */
+  discount?: number;
 }
 
 /** What the buyer still owes on an order. */
@@ -47,13 +55,43 @@ export interface Buyer {
   previous?: PreviousDecision;
   /** Credit owed to the buyer on orders already collected; netted off the next collection. */
   creditBalance?: Cents;
+  /**
+   * A pull sent but not yet known paid or refused (Metal answered pending/held, or the process
+   * died mid-call). It is resolved by re-sending the SAME pull (same payment-id, amount and original
+   * credential), which Metal pays at most once, before any new batch is built.
+   */
+  inflight?: { paymentId: string; orderIds: string[]; amount: Cents; creditApplied: Cents; credential: string; mandateKeyFile: string };
+  /** Statements issued as their own Metal mandates (the statement IS the mandate). */
+  statements?: Statement[];
+}
+
+/**
+ * A statement issued as its own Metal mandate: cap = budget = total, collectible once, only
+ * between its due time and the end of grace. The buyer's owner binding it is the acceptance;
+ * the chain refuses early, oversized, repeat or late collections and the desk records each refusal.
+ */
+export interface Statement {
+  id: string;
+  orderIds: string[];
+  total: Cents;
+  dueAt: string;
+  graceEndsAt: string;
+  /** sha256 of the statement's orders and amounts; also the collection's payment-id. */
+  hash: string;
+  credential: string;
+  mandateKeyFile: string;
+  mandateId: string;
+  acceptTx: string;
+  status: "accepted" | "collected" | "unpaid";
+  collectedTx?: string;
+  refusals: { reason: string; tx?: string; at: string }[];
 }
 
 export interface DeskEvent {
   seq: number;
   at: string;
   buyerId: string;
-  type: "order" | "decision" | "collect" | "collect_refused" | "escalate" | "credit" | "dispute" | "vic" | "mandate" | "books" | "settle";
+  type: "order" | "decision" | "collect" | "collect_refused" | "escalate" | "credit" | "dispute" | "vic" | "mandate" | "books" | "settle" | "agent" | "refused" | "statement" | "proof";
   summary: string;
   data: Record<string, unknown>;
 }
@@ -65,19 +103,26 @@ export interface DeskState {
 
 export interface DeskDeps {
   supplierPayee: string;
+  /** Funded supplier key that pays gas to record refused statement collections on chain. */
+  refusalKey?: string;
   metal: {
     status(credential: string): Promise<MandateStatus>;
-    pull(p: { credential: string; mandateKeyFile: string; to: string; amount: Cents; paymentId: string }): Promise<PullOutcome>;
+    pull(p: { credential: string; mandateKeyFile: string; to: string; amount: Cents; paymentId: string; recordRefusalKey?: string }): Promise<PullOutcome>;
   };
   balanceOf(address: string): Promise<Cents>;
   books: Books;
   now(): Date;
+  /** Reads a payment intent from Airwallex, so the VIC gate verifies rather than trusts. */
+  readPaymentIntent?(id: string): Promise<{ status: string; captured_amount?: number; merchant_order_id?: string; metadata?: Record<string, string> }>;
   policy?: CreditPolicy;
   persist?(state: DeskState): void;
 }
 
 const usd = (c: Cents) => `$${(c / 100).toFixed(2)}`;
 const openOrders = (b: Buyer) => b.orders.filter((o) => o.route === "ON_TAB" && !o.collectedBy);
+/** Orders an accepted statement will collect: the credit-line mandate must not pull them too. */
+const onAcceptedStatement = (b: Buyer) => new Set((b.statements ?? []).filter((st) => st.status === "accepted").flatMap((st) => st.orderIds));
+const lineCollectable = (b: Buyer) => { const covered = onAcceptedStatement(b); return openOrders(b).filter((o) => !covered.has(o.id)); };
 const outstandingOf = (b: Buyer) => Math.max(0, openOrders(b).reduce((s, o) => s + dueOn(o), 0) - (b.creditBalance ?? 0));
 
 /** Payment-id for a collection: hash of exactly which orders (and amounts) it pays for, and any credit netted off. */
@@ -140,10 +185,11 @@ export class Desk {
    * The payment-id names exactly those orders and the credit applied.
    */
   private async collect(b: Buyer, amount: Cents): Promise<boolean> {
+    if (b.inflight) return this.resolveInflight(b);
     const credit = b.creditBalance ?? 0;
     const batch: Order[] = [];
     let gross = 0;
-    for (const o of openOrders(b)) {
+    for (const o of lineCollectable(b)) {
       if (gross + dueOn(o) > amount + credit) break;
       batch.push(o);
       gross += dueOn(o);
@@ -159,19 +205,32 @@ export class Desk {
       this.emit(b.id, "collect", `${batch.length} order(s) settled entirely from credit (${usd(applied)})`, { paymentId, orders: batch.map((o) => o.id), amount: 0, creditApplied: applied });
       return true;
     }
-    const res = await this.deps.metal.pull({ credential: b.credential!, mandateKeyFile: b.mandateKeyFile!, to: this.deps.supplierPayee, amount: net, paymentId });
+    // Record the pull BEFORE sending it, so a crash or a pending answer can only ever be retried as this same pull.
+    b.inflight = { paymentId, orderIds: batch.map((o) => o.id), amount: net, creditApplied: applied, credential: b.credential!, mandateKeyFile: b.mandateKeyFile! };
+    this.deps.persist?.(this.state);
+    return this.resolveInflight(b);
+  }
+
+  /** Sends (or re-sends) the in-flight pull and applies its outcome. Paid/refused clear it; pending/held keep it. */
+  private async resolveInflight(b: Buyer): Promise<boolean> {
+    const p = b.inflight!;
+    const res = await this.deps.metal.pull({ credential: p.credential, mandateKeyFile: p.mandateKeyFile, to: this.deps.supplierPayee, amount: p.amount, paymentId: p.paymentId });
     if (res.outcome === "paid") {
+      const batch = b.orders.filter((o) => p.orderIds.includes(o.id));
       for (const o of batch) o.collectedBy = res.tx;
-      b.creditBalance = credit - applied;
-      const creditNote = applied ? ` after ${usd(applied)} credit` : "";
-      this.emit(b.id, "collect", `collected ${usd(net)} for ${batch.length} order(s)${creditNote}${res.alreadyPaid ? " (already paid earlier)" : ""}`, { tx: res.tx, paymentId, orders: batch.map((o) => o.id), amount: net, creditApplied: applied });
+      b.creditBalance = (b.creditBalance ?? 0) - p.creditApplied;
+      delete b.inflight;
+      const creditNote = p.creditApplied ? ` after ${usd(p.creditApplied)} credit` : "";
+      this.emit(b.id, "collect", `collected ${usd(p.amount)} for ${batch.length} order(s)${creditNote}${res.alreadyPaid ? " (already paid earlier)" : ""}`, { tx: res.tx, paymentId: p.paymentId, orders: p.orderIds, amount: p.amount, creditApplied: p.creditApplied });
       return true;
     }
     if (res.outcome === "refused") {
-      this.emit(b.id, "collect_refused", `pull of ${usd(net)} refused: ${res.reason}`, { reason: res.reason, detail: res.detail, paymentId, amount: net });
+      delete b.inflight;
+      this.emit(b.id, "collect_refused", `pull of ${usd(p.amount)} refused: ${res.reason}`, { reason: res.reason, detail: res.detail, paymentId: p.paymentId, amount: p.amount });
     } else {
-      this.emit(b.id, "collect_refused", `pull of ${usd(net)} ${res.outcome}`, { outcome: res.outcome, paymentId, amount: net });
+      this.emit(b.id, "collect_refused", `pull of ${usd(p.amount)} ${res.outcome}; will re-send the same pull before anything else`, { outcome: res.outcome, paymentId: p.paymentId, amount: p.amount });
     }
+    this.deps.persist?.(this.state);
     return false;
   }
 
@@ -189,6 +248,61 @@ export class Desk {
     return route;
   }
 
+  /** What Northwind offers this buyer for this order right now (fresh credit decision, code-priced). */
+  async offerFor(buyerId: string, productId: string, units: number) {
+    const decision = await this.evaluate(buyerId);
+    return quote(productId, units, decision);
+  }
+
+  /**
+   * An agent's order with its chosen payment option. The choice is re-checked against a fresh,
+   * code-computed offer: anything not on offer is refused, whatever the agent says.
+   */
+  async placeAgentOrder(
+    buyerId: string,
+    req: { productId: string; units: number; option: PaymentOption; note?: string; staleUnits?: number },
+  ): Promise<{ ok: true; orderId: string; amount: Cents; dueAt: string | null; route: Order["route"] } | { ok: false; reason: string }> {
+    const b = this.buyer(buyerId);
+    let offer;
+    try {
+      offer = await this.offerFor(buyerId, req.productId, req.units);
+    } catch (e) {
+      const reason = e instanceof Error ? e.message : String(e);
+      this.emit(b.id, "refused", `order refused: ${reason}`, { req });
+      return { ok: false, reason };
+    }
+    const chosen = offer.options.find((o) => o.option === req.option);
+    if (!chosen) {
+      const reason = `option "${req.option}" is not on offer for this order${offer.notes.length ? ` (${offer.notes.join("; ")})` : ""}`;
+      this.emit(b.id, "refused", `order refused: ${reason}`, { req, offered: offer.options.map((o) => o.option) });
+      return { ok: false, reason };
+    }
+    const p = CATALOG.find((x) => x.id === req.productId)!;
+    const now = this.deps.now();
+    const id = `ord-${now.getTime().toString(36)}-${b.orders.length + 1}`;
+    const dueAt = chosen.dueInDays > 0 ? new Date(now.getTime() + chosen.dueInDays * 86_400_000).toISOString() : null;
+    const route: Order["route"] = chosen.option === "prepay_card" ? "PREPAY_VIC" : "ON_TAB";
+    const order: Order = {
+      id, amount: chosen.amount, description: `${p.name} · ${req.units} ${p.unit}`, placedAt: now.toISOString(), route,
+      productId: p.id, units: req.units, unitPrice: p.unitPrice, priceRoute: p.priceRoute, option: chosen.option, discount: chosen.discount,
+      ...(dueAt ? { dueAt } : {}), ...(req.staleUnits !== undefined ? { staleUnits: req.staleUnits } : {}),
+    };
+    b.orders.push(order);
+    const terms = chosen.option === "prepay_card" ? "prepay by Visa card" : chosen.option === "net_30" ? "net-30 on the tab" : chosen.option === "net_7" ? "net-7 on the tab" : `${chosen.discount * 100}% off, due in ${chosen.dueInDays} days, on the tab`;
+    this.emit(b.id, "order", `${id} ${order.description}: ${usd(order.amount)} → ${terms}`, { order, note: req.note ?? null });
+    return { ok: true, orderId: id, amount: order.amount, dueAt, route };
+  }
+
+  /** Records the result of the "every dollar proven" checks. */
+  recordProof(summary: string, checks: unknown[]) {
+    this.emit("desk", "proof", summary, { checks });
+  }
+
+  /** Records what a buyer agent said about its decision (shown on the screen; never used to decide). */
+  recordAgentNote(buyerId: string, text: string, data: Record<string, unknown> = {}) {
+    this.emit(buyerId, "agent", text, data);
+  }
+
   /**
    * A credit note. On an order still on the tab it reduces what is owed; on a collected
    * order it becomes credit netted off the buyer's next collection. Never above what was charged.
@@ -202,12 +316,83 @@ export class Desk {
     if (applied === 0) return 0;
     o.credited = (o.credited ?? 0) + applied;
     let where = "reduces what is owed on the tab";
-    if (o.collectedBy) {
+    // A pull already sent for this order (in flight) took the pre-credit amount, so treat it as collected.
+    const taken = Boolean(o.collectedBy) || Boolean(b.inflight?.orderIds.includes(orderId));
+    if (taken) {
       b.creditBalance = (b.creditBalance ?? 0) + applied;
       where = "carried to the next collection";
     }
-    this.emit(b.id, "credit", `credit note ${usd(applied)} on ${orderId}: ${reason} (${where})`, { orderId, amount: applied, reason, collected: Boolean(o.collectedBy) });
+    this.emit(b.id, "credit", `credit note ${usd(applied)} on ${orderId}: ${reason} (${where})`, { orderId, amount: applied, reason, collected: taken });
     return applied;
+  }
+
+  /**
+   * Open tab orders due on the same UTC day as `dueOnDay` that no statement covers yet, priced net
+   * of credits. The statement is due at the latest of their due times, so no order is collected early.
+   */
+  draftStatement(buyerId: string, dueOnDay: string): { id: string; orderIds: string[]; total: Cents; dueAt: string; hash: string } | null {
+    const b = this.buyer(buyerId);
+    const day = dueOnDay.slice(0, 10);
+    const covered = new Set((b.statements ?? []).flatMap((st) => st.orderIds));
+    const orders = openOrders(b).filter((o) => o.dueAt?.slice(0, 10) === day && !covered.has(o.id));
+    if (orders.length === 0) return null;
+    const dueAt = orders.map((o) => o.dueAt!).sort().at(-1)!;
+    const total = orders.reduce((s, o) => s + dueOn(o), 0);
+    const hash = batchPaymentId(b.id, orders.map((o) => ({ id: o.id, amount: dueOn(o) })));
+    return { id: `STM-${hash.slice(2, 10).toUpperCase()}`, orderIds: orders.map((o) => o.id), total, dueAt, hash };
+  }
+
+  /** The buyer's owner bound the statement mandate: the statement is accepted. */
+  recordStatement(buyerId: string, st: Omit<Statement, "status" | "refusals">) {
+    const b = this.buyer(buyerId);
+    (b.statements ??= []).push({ ...st, status: "accepted", refusals: [] });
+    this.emit(b.id, "statement", `statement ${st.id} ${usd(st.total)} for ${st.orderIds.length} order(s) accepted by the buyer on chain: collectible once, from ${st.dueAt.slice(0, 16).replace("T", " ")} until ${st.graceEndsAt.slice(0, 16).replace("T", " ")} UTC`, { statementId: st.id, mandateId: st.mandateId, tx: st.acceptTx, total: st.total });
+  }
+
+  /**
+   * Collects a statement through its own mandate (payment-id = its hash). The chain enforces the
+   * terms: early, repeat, oversized or late attempts are refused, and with a refusal key each
+   * refusal is recorded on chain.
+   */
+  async collectStatement(
+    buyerId: string,
+    statementId: string,
+    /** Fault injection only: a different amount or a fresh payment-id, as a buggy or malicious collector would send. */
+    inject: { amount?: Cents; paymentId?: string } = {},
+  ): Promise<PullOutcome> {
+    const amount = inject.amount;
+    const b = this.buyer(buyerId);
+    const st = (b.statements ?? []).find((x) => x.id === statementId);
+    if (!st) throw new Error(`unknown statement ${statementId}`);
+    const res = await this.deps.metal.pull({
+      credential: st.credential, mandateKeyFile: st.mandateKeyFile, to: this.deps.supplierPayee, amount: amount ?? st.total, paymentId: inject.paymentId ?? st.hash,
+      ...(this.deps.refusalKey ? { recordRefusalKey: this.deps.refusalKey } : {}),
+    });
+    if (res.outcome === "paid") {
+      if (st.status !== "collected") {
+        for (const o of b.orders.filter((x) => st.orderIds.includes(x.id))) o.collectedBy = res.tx;
+        st.status = "collected";
+        st.collectedTx = res.tx;
+      }
+      this.emit(b.id, "collect", `statement ${st.id} collected ${usd(amount ?? st.total)} through its own mandate${res.alreadyPaid ? " (already paid earlier)" : ""}`, { tx: res.tx, statementId: st.id, paymentId: st.hash, orders: st.orderIds, amount: amount ?? st.total });
+    } else if (res.outcome === "refused") {
+      st.refusals.push({ reason: res.reason, ...(res.recordedTx ? { tx: res.recordedTx } : {}), at: this.deps.now().toISOString() });
+      this.emit(b.id, "refused", `chain refused collecting statement ${st.id}: ${res.reason}${res.recordedTx ? " (refusal recorded on chain)" : ""}`, { statementId: st.id, reason: res.reason, detail: res.detail, ...(res.recordedTx ? { tx: res.recordedTx } : {}) });
+    } else {
+      this.emit(b.id, "collect_refused", `statement ${st.id} collection ${res.outcome}`, { statementId: st.id, outcome: res.outcome });
+    }
+    this.deps.persist?.(this.state);
+    return res;
+  }
+
+  /** A statement that was not paid in its window: its orders go back to the credit-line backstop. */
+  markStatementUnpaid(buyerId: string, statementId: string) {
+    const b = this.buyer(buyerId);
+    const st = (b.statements ?? []).find((x) => x.id === statementId);
+    if (!st || st.status !== "accepted") return;
+    st.status = "unpaid";
+    this.emit(b.id, "escalate", `statement ${st.id} unpaid after grace: ${usd(st.total)} returns to the credit-line mandate`, { statementId: st.id });
+    this.deps.persist?.(this.state);
   }
 
   /** Records a dispute decision (made in code from the order records) and applies its credits. */
@@ -216,16 +401,36 @@ export class Desk {
     for (const f of decision.findings) if (f.verdict === "credit" && f.orderId) credited += this.applyCredit(buyerId, f.orderId, f.amount, f.reason);
     const upheld = decision.findings.filter((f) => f.verdict === "upheld_for_supplier").length;
     const escalated = decision.findings.filter((f) => f.verdict === "escalate").length;
-    this.emit(buyerId, "dispute", `dispute resolved: ${usd(credited)} credited, ${upheld} claim(s) upheld with proof, ${escalated} to a person`, { ...meta, findings: decision.findings });
+    this.emit(buyerId, "dispute", `dispute resolved: ${usd(credited)} credited, ${upheld} claim(s) declined with the order record as proof, ${escalated} to a person`, { ...meta, findings: decision.findings });
     if (escalated) this.emit(buyerId, "escalate", `${escalated} dispute claim(s) need a person`, { findings: decision.findings.filter((f) => f.verdict === "escalate") });
     this.deps.persist?.(this.state);
   }
 
   /** A passkey-approved VIC payment from this buyer settled at the supplier's checkout: the on-ramp to credit. */
-  recordVicPayment(buyerId: string, p: { paymentIntentId: string; mandateId: string; amount: Cents; statementId: string }) {
+  /**
+   * Counts a passkey-approved VIC payment toward this buyer's terms, but only after reading the
+   * payment intent back from Airwallex: it must be SUCCEEDED, captured, and carry the statement's
+   * order id and hash. (A merchant cannot tell from the card that it was VIC; the link is the
+   * Airi mandate id and statement hash recorded when the statement was paid.)
+   */
+  async verifyVicPayment(buyerId: string, p: { paymentIntentId: string; airiMandateId: string; statementId: string; statementHash: string }): Promise<boolean> {
     const b = this.buyer(buyerId);
-    b.vicSettledCount += 1;
-    this.emit(b.id, "vic", `Visa-verified payment ${usd(p.amount)} settled (statement ${p.statementId}) → eligible for terms`, p);
+    if (!this.deps.readPaymentIntent) throw new Error("readPaymentIntent dependency missing");
+    const pi = await this.deps.readPaymentIntent(p.paymentIntentId);
+    const checks = {
+      succeeded: pi.status === "SUCCEEDED",
+      captured: (pi.captured_amount ?? 0) > 0,
+      statement: pi.merchant_order_id === p.statementId,
+      hash: (pi.metadata?.statement_hash ?? "") === p.statementHash,
+    };
+    const ok = Object.values(checks).every(Boolean);
+    if (ok) {
+      b.vicSettledCount += 1;
+      this.emit(b.id, "vic", `Visa-verified payment ${usd(Math.round((pi.captured_amount ?? 0) * 100))} checked against Airwallex (statement ${p.statementId}) → counts toward terms`, { ...p, checks });
+    } else {
+      this.emit(b.id, "refused", `VIC payment ${p.paymentIntentId} did not verify: ${Object.entries(checks).filter(([, v]) => !v).map(([k]) => k).join(", ")}`, { ...p, checks });
+    }
+    return ok;
   }
 
   /** The buyer's human bound (or replaced) a debit mandate naming this supplier. */

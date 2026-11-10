@@ -74,7 +74,7 @@ export function parseStatus(stdout: string): MandateStatus {
 
 export type PullOutcome =
   | { outcome: "paid"; tx: string; alreadyPaid: boolean; spent: string }
-  | { outcome: "refused"; reason: string; detail: string }
+  | { outcome: "refused"; reason: string; detail: string; /** set when the refusal was recorded on chain */ recordedTx?: string }
   | { outcome: "pending" | "held"; tx?: string };
 
 export function parsePull(stdout: string): PullOutcome {
@@ -83,7 +83,7 @@ export function parsePull(stdout: string): PullOutcome {
   if (outcome.startsWith("paid")) return { outcome: "paid", tx: one.transaction ?? "", alreadyPaid: /already paid/.test(stdout), spent: one.spent ?? "" };
   if (outcome.startsWith("refused")) {
     const r = /^(\S+)\s*(?:\((.*)\))?/.exec(one.reason ?? "");
-    return { outcome: "refused", reason: r?.[1] ?? "unknown", detail: r?.[2] ?? "" };
+    return { outcome: "refused", reason: r?.[1] ?? "unknown", detail: r?.[2] ?? "", ...(one.transaction ? { recordedTx: one.transaction } : {}) };
   }
   if (outcome.startsWith("held")) return { outcome: "held", ...(one.transaction ? { tx: one.transaction } : {}) };
   return { outcome: "pending", ...(one.transaction ? { tx: one.transaction } : {}) };
@@ -103,7 +103,12 @@ export class MetalAgent {
   }
 
   /** Supplier collects from the buyer's mandate. `paymentId` makes a retry pay at most once. */
-  async pull(p: { credential: string; mandateKeyFile: string; to: string; amount: Cents; paymentId: string }): Promise<PullOutcome> {
+  /**
+   * Supplier collects from the buyer's mandate. `paymentId` makes a retry pay at most once.
+   * With `recordRefusalKey` (a funded key that pays gas), a refused pull is still sent so the
+   * refusal is recorded on chain.
+   */
+  async pull(p: { credential: string; mandateKeyFile: string; to: string; amount: Cents; paymentId: string; recordRefusalKey?: string }): Promise<PullOutcome> {
     const r = await this.runner([
       "mandate", "pull",
       "--credential", p.credential,
@@ -111,13 +116,21 @@ export class MetalAgent {
       "--to", p.to,
       "--amount", (p.amount / 100).toFixed(2),
       "--payment-id", p.paymentId,
+      ...(p.recordRefusalKey ? ["--key", p.recordRefusalKey, "--record-refusal"] : []),
       ...net(this.network),
     ]);
     return parsePull(r.stdout);
   }
 
   /** Supplier issues a debit-mandate credential naming itself as payee, signed with its own issuer key. */
-  async issueCredential(p: { principal: string; cap: Cents; budget: Cents; payee: string; payeeLabel: string; issuerKey: string; out: string; description: string; mandateKeyFile?: string }) {
+  async issueCredential(p: {
+    principal: string; cap: Cents; budget: Cents; payee: string; payeeLabel: string; issuerKey: string; out: string; description: string; mandateKeyFile?: string;
+    /** Seconds from now until the mandate can be collected (a statement's due date). */
+    startsIn?: number;
+    /** Seconds from now until it can no longer be collected (due date + grace). */
+    expiresIn?: number;
+    maxOccurrences?: number;
+  }) {
     const r = await this.runner([
       "mandate", "credential", "create",
       "--principal", p.principal,
@@ -128,10 +141,14 @@ export class MetalAgent {
       "--description", p.description,
       "--out", p.out,
       ...(p.mandateKeyFile ? ["--mandate-key-file", p.mandateKeyFile] : []),
+      ...(p.startsIn !== undefined ? ["--starts-in", String(Math.max(0, Math.round(p.startsIn)))] : []),
+      ...(p.expiresIn !== undefined ? ["--expires-in", String(Math.round(p.expiresIn))] : []),
+      ...(p.maxOccurrences !== undefined ? ["--max-occurrences", String(p.maxOccurrences)] : []),
       ...net(this.network),
     ]);
     const { one } = parseKv(r.stdout);
-    return { mandateId: one.mandate ?? "", mandateKeyFile: (one["mandate-key-file"] ?? "").split(" ")[0]! };
+    const ts = (k: string) => { const m = /^(\d+)/.exec(one[k] ?? ""); return m ? new Date(Number(m[1]) * 1000).toISOString() : undefined; };
+    return { mandateId: one.mandate ?? "", mandateKeyFile: (one["mandate-key-file"] ?? "").split(" ")[0]!, startsAt: ts("starts"), expiresAt: ts("expiry") };
   }
 
   /** Creates (or names, if it exists) the owner's smart account. The owner key is funded for gas from the faucet. */

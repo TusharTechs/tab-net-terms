@@ -54,3 +54,15 @@ describe("metal-agent output parsing", () => {
     expect(await usdzBalance("https://rpc", "0x4d0a5161AbA00FB71397675a1919163d6e7cEd33", fake)).toBe(9_750);
   });
 });
+
+describe("recorded refusals", () => {
+  it("keeps the transaction hash when a refusal is recorded on chain", () => {
+    const out = `transaction 0x03a1dbc118105dbd8878728eb6d00325e04f969b18cd5bc9926adeddf789192a
+outcome refused
+reason mandate_outside_recurrence (the mandate has not started yet, or its dates have ended)
+payer 0x4d0a
+payee 0x6C75
+amount 1.2 *USDZ`;
+    expect(parsePull(out)).toEqual({ outcome: "refused", reason: "mandate_outside_recurrence", detail: "the mandate has not started yet, or its dates have ended", recordedTx: "0x03a1dbc118105dbd8878728eb6d00325e04f969b18cd5bc9926adeddf789192a" });
+  });
+});
