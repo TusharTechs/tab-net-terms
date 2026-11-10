@@ -121,21 +121,27 @@ tail();
 await pause();
 
 // ── 1b. The CFO types goals; code bounds them; a signed policy re-prices the book ────
+/** The CFO types goals → Claude proposes → rails → dry run against every buyer → signed with the CFO's key → the desk verifies and applies. */
+async function cfoChange(goals: string, opts: { showTamper?: boolean } = {}) {
+  const current = { credit: desk.creditPolicy(), terms: desk.salesTerms() };
+  const compiled = await compileGoals(target, goals, current);
+  const railed = applyRails(current, compiled.proposal);
+  const diff = await desk.dryRunPolicy(railed.policy);
+  for (const c of railed.accepted) console.log(`  ✔ ${policyChangeText(c)}${c.cfoWords ? `  ← "${c.cfoWords}"` : ""}`);
+  for (const c of railed.rejected) console.log(`  ✘ ${policyChangeText(c)}: ${c.why}`);
+  for (const n of compiled.proposal.notCompiled) console.log(`  ∅ not expressible: ${n.goal}`);
+  for (const d of diff) console.log(`  dry run · ${d.name}: ${d.before.terms} $${(d.before.limit / 100).toFixed(2)} → ${d.after.terms} $${(d.after.limit / 100).toFixed(2)}${d.wouldCollect ? ` · would collect $${(d.wouldCollect / 100).toFixed(2)} now` : ""}`);
+  const signed = signPolicy({ policy: railed.policy, goals, summary: compiled.proposal.summary, accepted: railed.accepted, rejected: railed.rejected, notCompiled: compiled.proposal.notCompiled, model: compiled.model }, NORTHWIND.cfoPolicyKey.key);
+  if (opts.showTamper) {
+    // Someone edits the signed policy to 5% off before it reaches the desk: refused.
+    const edited = { ...signed, policy: { ...signed.policy, terms: { ...signed.policy.terms, earlyPay: { ...signed.policy.terms.earlyPay, discount: 0.05 } } } };
+    await desk.applyPolicy(edited, diff);
+  }
+  await desk.applyPolicy(signed, diff);
+}
+
 say("1b · Northwind's CFO types this quarter's goals; Claude compiles them, code checks them, the desk dry-runs them");
-const CFO_GOALS = "Cash is tight this quarter, so we want to be paid faster: offer 3% off to any buyer who pays within 10 days. Keep net-30 for buyers with a clean record, but no single buyer above $350 on credit. And give our best customers net-90.";
-const current = { credit: desk.creditPolicy(), terms: desk.salesTerms() };
-const compiled = await compileGoals(target, CFO_GOALS, current);
-const railed = applyRails(current, compiled.proposal);
-const diff = await desk.dryRunPolicy(railed.policy);
-for (const c of railed.accepted) console.log(`  ✔ ${policyChangeText(c)}${c.cfoWords ? `  ← "${c.cfoWords}"` : ""}`);
-for (const c of railed.rejected) console.log(`  ✘ ${policyChangeText(c)}: ${c.why}`);
-for (const n of compiled.proposal.notCompiled) console.log(`  ∅ not expressible: ${n.goal}`);
-for (const d of diff) console.log(`  dry run · ${d.name}: ${d.before.terms} $${(d.before.limit / 100).toFixed(2)} → ${d.after.terms} $${(d.after.limit / 100).toFixed(2)}${d.wouldCollect ? ` · would collect $${(d.wouldCollect / 100).toFixed(2)} now` : ""}`);
-const signed = signPolicy({ policy: railed.policy, goals: CFO_GOALS, summary: compiled.proposal.summary, accepted: railed.accepted, rejected: railed.rejected, notCompiled: compiled.proposal.notCompiled, model: compiled.model }, NORTHWIND.cfoPolicyKey.key);
-// Someone edits the signed policy to 5% off before it reaches the desk: refused.
-const edited = { ...signed, policy: { ...signed.policy, terms: { ...signed.policy.terms, earlyPay: { ...signed.policy.terms.earlyPay, discount: 0.05 } } } };
-await desk.applyPolicy(edited, diff);
-await desk.applyPolicy(signed, diff);
+await cfoChange("Cash is tight this quarter, so we want to be paid faster: offer 3% off to any buyer who pays within 10 days. Keep net-30 for buyers with a clean record, but no single buyer above $350 on credit. And give our best customers net-90.", { showTamper: true });
 tail();
 await pause();
 
@@ -210,6 +216,12 @@ if (disputed) {
   const read = await readDispute(target.client as any, target.model, email, acme.orders.map((o) => ({ id: o.id, description: o.description, priceRoute: `${o.priceRoute} (${o.unitPrice}¢ per unit)`, units: o.units ?? 1, placedAt: o.placedAt })), target.requestExtras);
   desk.resolveDispute("acme", decideDispute(read.claims, desk.evidenceFor("acme")), { summary: read.summary, model: read.model });
 }
+tail();
+await pause();
+
+// ── 5b. Mid-book: the CFO tightens with tabs open; the book re-prices and the excess is collected ─
+say("5b · Mid-book, with tabs open, the CFO caps any single buyer's credit; the dry run shows what it costs, then the desk collects the excess on chain");
+await cfoChange("A large customer just failed to pay another supplier, so cut our concentration risk: until month end, no single buyer may owe us more than $150 on credit, whatever their terms. Keep the 3% early-pay discount.");
 tail();
 await pause();
 

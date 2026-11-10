@@ -206,7 +206,7 @@ const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a
  * Finds a USDZ transfer of exactly `amount` from `from` to `to` in the last `lookback` blocks, by its
  * Transfer log. Used to reconcile a pull whose outcome was lost (crash, timeout) before re-sending it.
  */
-export async function findTransfer(rpcUrl: string, p: { from: string; to: string; amount: Cents; lookback?: number }, fetchImpl: typeof fetch = fetch): Promise<string | null> {
+export async function findTransfer(rpcUrl: string, p: { from: string; to: string; amount: Cents; lookback?: number; exclude?: string[] }, fetchImpl: typeof fetch = fetch): Promise<string | null> {
   const call = async <T>(method: string, params: unknown[]): Promise<T> => {
     const res = await fetchImpl(rpcUrl, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }) });
     const json = (await res.json()) as { result?: T; error?: { message: string } };
@@ -218,7 +218,8 @@ export async function findTransfer(rpcUrl: string, p: { from: string; to: string
   const fromBlock = Math.max(0, latest - Math.min(p.lookback ?? 90_000, 99_000)); // the RPC caps one query at 100,000 blocks (~100 min on testnet)
   const logs = await call<{ transactionHash: string; data: string }[]>("eth_getLogs", [{ address: USDZ, fromBlock: `0x${fromBlock.toString(16)}`, toBlock: "latest", topics: [TRANSFER_TOPIC, pad(p.from), pad(p.to)] }]);
   const want = BigInt(p.amount) * 10n ** 16n;
-  const hit = logs.filter((l) => BigInt(l.data.slice(0, 66)) === want).at(-1);
+  const skip = new Set((p.exclude ?? []).map((t) => t.toLowerCase()));
+  const hit = logs.filter((l) => BigInt(l.data.slice(0, 66)) === want && !skip.has(l.transactionHash.toLowerCase())).at(-1);
   return hit?.transactionHash ?? null;
 }
 

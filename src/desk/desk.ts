@@ -138,8 +138,8 @@ export interface DeskDeps {
   balanceOf(address: string): Promise<Cents>;
   books: Books;
   now(): Date;
-  /** Finds a USDZ transfer from the buyer to the supplier of exactly `amount` on chain (recent blocks). */
-  findTransfer?(p: { from: string; to: string; amount: Cents }): Promise<string | null>;
+  /** Finds a USDZ transfer from the buyer to the supplier of exactly `amount` on chain (recent blocks), skipping txs already on record. */
+  findTransfer?(p: { from: string; to: string; amount: Cents; exclude?: string[] }): Promise<string | null>;
   /** Reads a payment intent from Airwallex, so the VIC gate verifies rather than trusts. */
   readPaymentIntent?(id: string): Promise<{ status: string; amount?: number; captured_amount?: number; merchant_order_id?: string; metadata?: Record<string, string> }>;
   policy?: CreditPolicy;
@@ -292,7 +292,8 @@ export class Desk {
     if (p.spentBefore !== undefined) {
       const now = await this.deps.metal.status(p.credential);
       if (now.spent >= p.spentBefore + p.amount) {
-        const tx = p.tx ?? (await this.deps.findTransfer?.({ from: b.account, to: this.deps.supplierPayee, amount: p.amount })) ?? null;
+        const known = this.state.events.filter((e) => e.type === "collect" && e.data.tx).map((e) => String(e.data.tx));
+        const tx = p.tx ?? (await this.deps.findTransfer?.({ from: b.account, to: this.deps.supplierPayee, amount: p.amount, exclude: known })) ?? null;
         if (!tx) {
           this.emit(b.id, "escalate", `pull of ${usd(p.amount)} went through on the mandate (spent ${usd(p.spentBefore)} → ${usd(now.spent)}) but its tx was not found: not re-sending; a person reconciles it`, { paymentId: p.paymentId, amount: p.amount });
           this.deps.persist?.(this.state);
@@ -324,6 +325,25 @@ export class Desk {
     const creditNote = p.creditApplied ? ` after ${usd(p.creditApplied)} credit` : "";
     this.emit(b.id, "collect", `collected ${usd(p.amount)} for ${batch.length} order(s)${creditNote}${note ? ` (${note})` : ""}`, { tx, paymentId: p.paymentId, orders: p.orderIds, amount: p.amount, creditApplied: p.creditApplied });
     return true;
+  }
+
+  /**
+   * The buyer asks to pay its open credit-line tab now (for example, to take the early-pay discount
+   * on time). Collected through its mandate like any other pull: in whole orders, never past the
+   * mandate's headroom or the buyer's balance, and never orders an accepted statement will collect.
+   */
+  async payNow(buyerId: string): Promise<boolean> {
+    const b = this.buyer(buyerId);
+    if (!b.credential || !b.mandateKeyFile) return false;
+    if (b.inflight) return this.resolveInflight(b);
+    const owed = lineCollectable(b).reduce((s, o) => s + dueOn(o), 0) - (b.creditBalance ?? 0);
+    if (owed <= 0) return false;
+    const m = await this.deps.metal.status(b.credential);
+    const max = Math.min(Math.max(0, m.budget - m.spent), await this.deps.balanceOf(b.account));
+    this.emit(b.id, "order", `${b.name} asks to pay its tab now: ${usd(owed)}`, { payNow: owed });
+    const ok = await this.collect(b, owed, max);
+    this.deps.persist?.(this.state);
+    return ok;
   }
 
   /** An agent order arrives. It goes on the tab only if it fits; otherwise prepay (VIC ≤ $200, else invoice). */
