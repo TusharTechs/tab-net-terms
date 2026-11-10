@@ -1,4 +1,4 @@
-<p align="center"><img src="public/logo.svg" width="96" height="96" alt="TAB logo: a buyer's tab, paid later, landing as a check"></p>
+<p align="center"><img src="public/favicon.svg" width="96" height="96" alt="TAB logo: a buyer's tab, paid later, landing as a check"></p>
 
 # TAB — net terms for AI agents
 
@@ -22,7 +22,23 @@ The rules that never move: no credit before a Visa-verified payment, and each pa
 
 ## The demo (one live run, every id real)
 
-`LIVE_VIC=1 npx tsx scripts/demo-run.ts` plays the story; `npm run screen` shows it live. **No keys needed to look:** [`docs/index.html`](docs/index.html) replays the verified run event by event (play, step, jump to a scene), with every Metal transaction linked to the public testnet explorer; rebuild it from a new run with `npm run replay -- <deskFile> <logFile>`. Full ids and the after-run re-checks: [`proofs/demo-run.md`](proofs/demo-run.md) (run `rmwavgb3a`, 21/21 checks).
+`LIVE_VIC=1 npx tsx scripts/demo-run.ts` plays the story against the live rails; `npm run screen` shows it as it happens. **No keys needed to look:** [`docs/index.html`](docs/index.html) is the same screen with run `rmwavgb3a` inlined: an overview, the live desk (play, step or jump to a scene, with every event moving across a map of the rails), the four guarantees, the proof with every id, what each rail does, and a 90-second guided tour. Full ids and the after-run re-checks: [`proofs/demo-run.md`](proofs/demo-run.md) (21/21 checks).
+
+**Live, not a mock.** The replay page and the video are recordings of one live run, `rmwavgb3a`; nothing in them is staged data. The screen streams the desk's real event log. What is simulated is listed under "What is simulated or labelled" below.
+
+### Live ids at a glance (run `rmwavgb3a`)
+
+| Rail | What | Id |
+| --- | --- | --- |
+| Metal | Acme's statement, collected through its own mandate ($24.25) | [`0xd5ebfb6a…9b1a`](https://testnet.metalntwx.com/tx/0xd5ebfb6a9cc6638c8d9badb20c0b0aa261b00b540303e3fae47f583f973d9b1a) |
+| Metal | Early collection refused, refusal recorded on chain | [`0x8143f9bc…48e2`](https://testnet.metalntwx.com/tx/0x8143f9bc0ed4297e82e1900d39368ecd709f551a734f9187f4278d6c7a8948e2) |
+| Metal | Mid-book collection after the CFO's $100 cap ($186.24) | [`0xc72689e8…db0b`](https://testnet.metalntwx.com/tx/0xc72689e890c1cea4f028945cc7797f9f07ed5530bd4fb6a159ca110e53acdb0b) |
+| Metal | Crash-mid-pull fault: the one $20.00 pull, not repeated | [`0xb6a6361f…a355`](https://testnet.metalntwx.com/tx/0xb6a6361fa19d0f6a32e64e145526bd866d3d946b36ad9cc6779ae5e19f03a355) |
+| Visa via Airi + Airwallex | Card hold $60.00, captured $48.00 | Airi mandate `mdt_sgpdll5pnho1a3b2vki` · payment intent `int_sgpvfdzq7ho1a3akbg7` |
+| Airwallex | Conversions USD → SGD (all SETTLED) | `8bc6db2c-92a1-4e7a-8759-9a402e9ae2e8` · `2601a5b8-07a1-4a04-b0e2-ce1302f00624` · `de215efb-ee9e-486e-b557-b030c382d46f` |
+| T:0 | Journal entries tied to the Metal collections | `je_prod_8Q1xcuSQvyGPkZkJ` (JE-10) · `je_prod_czIvKtSyTplbdJCJ` (JE-11) |
+
+The run makes no Airwallex transfer (payout): collections settle by deposit (a sandbox simulation) and conversion.
 
 1. **Acme earns terms.** Its earlier Visa payment is re-read from Airwallex; T:0 shows 3/3 invoices paid on time → net-30; its human binds a $400 line on Metal.
 2. **The CFO types goals.** "Offer 3% off for paying within 10 days… no single buyer above $350… give our best customers net-90." Claude compiles two changes and flags net-90 as not expressible; code checks every change against hard rails and dry-runs each buyer. The CFO's key (separate from the key that issues Metal credentials) signs the policy together with its audit trail, and the desk verifies that signature itself, when it applies the policy and every time it loads it (a copy edited after signing is refused).

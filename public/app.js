@@ -195,7 +195,12 @@
     const D = dur || Math.max(380, speed * 0.62);
     const start = performance.now();
     return new Promise((resolve) => {
+      // Animation frames stop in background tabs: a timer guarantees the packet finishes on time anyway.
+      let done = false;
+      const finish = () => { if (done) return; done = true; g.remove(); p.classList.remove("hot"); p.style.stroke = ""; resolve(); };
+      setTimeout(finish, D + 250);
       const step = (now) => {
+        if (done) return;
         let u = Math.min(1, (now - start) / D);
         const ease = u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
         let f = ease;
@@ -205,7 +210,7 @@
         if (t) { t.setAttribute("x", at.x); t.setAttribute("y", at.y - 12); }
         if (bounce && u >= 0.7) g.style.opacity = String(Math.max(0, 1 - (u - 0.7) / 0.3));
         if (u < 1) requestAnimationFrame(step);
-        else { g.remove(); p.classList.remove("hot"); p.style.stroke = ""; resolve(); }
+        else finish();
       };
       requestAnimationFrame(step);
     });
@@ -289,7 +294,7 @@
   function ladder(b) {
     const terms = b.decision ? b.decision.terms : "PREPAY";
     const overdue = b.decision && b.decision.reasons.some((r) => r.code === "OVERDUE_INVOICE");
-    const now = terms === "NET_30" ? 3 : terms === "NET_7" ? 2 : b.card && b.card.captured == null ? 1 : 0;
+    const now = terms === "NET_30" ? 3 : terms === "NET_7" ? 2 : b.card ? 1 : 0; // on (or just settled) a card tab
     return `<div class="ladder" role="list" aria-label="Credit ladder">${RUNGS.map(([t, s], i) => {
       let cls = "rung";
       // ✓ only on rungs this buyer actually stood on; rungs it skipped stay plain.
@@ -501,6 +506,282 @@
     });
   }
 
+  // ═══ Site: views, overview receipt, guarantees, proof page, built on, tour ═══
+  ICON.receipt = "M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2zM9 8h6M9 12h6M9 16h4";
+  document.querySelectorAll("[data-icon]").forEach((el) => { el.innerHTML = svgIcon(el.dataset.icon); });
+
+  const VIEWS = ["overview", "desk", "guarantees", "proof", "built-on"];
+  let view = null;
+  function showView(v, opts = {}) {
+    if (!VIEWS.includes(v)) v = LIVE ? "desk" : "overview";
+    if (v === view && !opts.force) return;
+    view = v;
+    document.querySelectorAll(".view").forEach((s) => s.classList.toggle("on", s.dataset.view === v));
+    document.querySelectorAll("#tabs a").forEach((a) => a.classList.toggle("on", a.dataset.view === v));
+    moveInk();
+    if (location.hash.slice(1) !== v) history.replaceState(null, "", `#${v}`);
+    if (v === "overview") renderReceipt();
+    if (v === "guarantees") renderGuarantees();
+    if (v === "proof") renderProofPage();
+    if (v === "built-on") renderBuilt();
+    if (!opts.keepScroll) window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+  }
+  function moveInk() {
+    const bar = $("inkbar");
+    const on = document.querySelector("#tabs a.on");
+    if (!bar || !on) return;
+    bar.style.left = `${on.offsetLeft}px`;
+    bar.style.width = `${on.offsetWidth}px`;
+  }
+  addEventListener("resize", moveInk);
+  addEventListener("hashchange", () => showView(location.hash.slice(1)));
+  document.addEventListener("click", (ev) => {
+    const a = ev.target.closest && ev.target.closest("#tabs a, a.brand");
+    if (a) { ev.preventDefault(); showView(a.dataset.view || "overview"); return; }
+    const act = ev.target.closest && ev.target.closest("[data-action]");
+    if (!act) return;
+    if (act.dataset.action === "tour") startTour();
+    if (act.dataset.action === "watch") { showView("desk"); if (!LIVE) { jump(-1); play(); } }
+    if (act.dataset.action === "scene") { showView("desk"); playScene(act.dataset.scene); }
+  });
+
+  /** Jump the replay to just before a scene, then play that scene with its animations. */
+  async function playScene(key, opts = {}) {
+    if (LIVE) return;
+    const k = SCENES.list.findIndex((s) => s.key === key);
+    if (k < 0) return;
+    const startSeq = SCENES.list[k].firstSeq;
+    const next = SCENES.list[k + 1];
+    const startIdx = EVENTS.findIndex((e) => e.seq === startSeq);
+    const endIdx = next ? EVENTS.findIndex((e) => e.seq === next.firstSeq) - 1 : EVENTS.length - 1;
+    jump(startIdx - 1);
+    const gen = ++sceneGen;
+    if (opts.scroll !== false) document.querySelector(".railcard")?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+    await sleep(350);
+    for (let i = startIdx; i <= endIdx; i++) {
+      if (gen !== sceneGen) return;
+      idx = i;
+      render(true);
+      if (tourAt >= 0) { const tg = document.querySelector(TOUR[tourAt].target); const r = tg && tg.getBoundingClientRect(); if (r && (r.top < 0 || r.bottom > innerHeight)) tg.scrollIntoView({ behavior: "auto", block: "center" }); placeTour(tg); } // the layout moved
+      await animate(EVENTS[i]);
+      await sleep(Math.max(120, speed * 0.25));
+    }
+  }
+  let sceneGen = 0;
+
+  // ── overview: Acme's tab as a printed receipt ──────────────────────────
+  function renderReceipt() {
+    const el = $("receipt");
+    if (!el) return;
+    const acmeId = BUYERS[0] ? BUYERS[0].id : "acme";
+    const orders = [];
+    const credits = [];
+    const txs = [];
+    for (const e of EVENTS) {
+      if (e.buyerId !== acmeId) continue;
+      const d = e.data || {};
+      if (e.type === "order" && d.order && (d.order.route === "ON_TAB" || d.order.route === "CARD_AUTH")) orders.push({ text: d.order.description, amount: d.order.amount, disc: d.order.discount });
+      if (e.type === "credit") credits.push(d.amount || 0);
+      if (e.type === "collect" && d.tx && !txs.some((t) => t.tx === d.tx)) txs.push({ tx: d.tx, amount: Number(d.amount || 0) });
+    }
+    if (!orders.length) { el.innerHTML = `<div class="r-head"><b>NORTHWIND DATA</b>Waiting for the first order…</div>`; return; }
+    const name = BUYERS[0] ? BUYERS[0].name.replace(/ (procurement|sourcing|buying) agent$/, "") : "Acme";
+    const sub = orders.reduce((s, o) => s + o.amount, 0);
+    const cr = credits.reduce((s, c) => s + c, 0);
+    const paid = txs.reduce((s, t) => s + t.amount, 0);
+    const lines = [];
+    let delay = 0.15;
+    const line = (l, r, cls = "") => { lines.push(`<div class="r-line ${cls}" style="animation-delay:${delay.toFixed(2)}s"><span>${l}</span><span>${r}</span></div>`); delay += 0.22; };
+    for (const o of orders) line(esc(o.text.replace(/ · /, " × ").slice(0, 34)), usd(o.amount));
+    if (orders.some((o) => o.disc)) line(`incl. ${Math.round((orders.find((o) => o.disc).disc) * 100)}% early-pay discount`, "", "muted");
+    if (cr) line("credit note (stale data, QA)", `−${usd(cr)}`, "muted");
+    line("ON THE TAB", usd(sub - cr), "tot");
+    const links = txs.map((t) => `<a href="${EXPLORER}${esc(t.tx)}" target="_blank" rel="noopener">${esc(short(t.tx))}</a> ${usd(t.amount)}`).join(" · ");
+    el.innerHTML = `<div class="r-head"><b>NORTHWIND DATA</b>${esc(name)} · tab on net terms</div>${lines.join("")}
+      <div class="r-foot" style="animation-delay:${delay.toFixed(2)}s">Collected on Metal: ${links || "pending"}</div>
+      ${paid ? `<div class="stamp-mark" style="animation-delay:${(delay + 0.35).toFixed(2)}s">Collected<br>on chain<small>${usd(paid)} · ${txs.length} tx</small></div>` : ""}`;
+  }
+
+  // ── guarantees ─────────────────────────────────────────────────────────
+  const sceneOfFirst = (pred) => { const e = EVENTS.find(pred); return e ? SCENES.of.get(e.seq) : null; };
+  const txLink = (tx, label) => `<a href="${EXPLORER}${esc(tx)}" target="_blank" rel="noopener">${esc(label || short(tx))} ↗</a>`;
+  function renderGuarantees() {
+    const el = $("g-grid");
+    if (!el) return;
+    const stRef = EVENTS.filter((e) => e.type === "refused" && e.data && e.data.statementId && e.data.tx);
+    const stCol = EVENTS.find((e) => e.type === "collect" && e.data && e.data.statementId && e.data.tx);
+    const hold = EVENTS.find((e) => e.type === "vic" && e.data && e.data.checks && "authorised" in e.data.checks);
+    const cap = EVENTS.find((e) => e.type === "vic" && e.data && e.data.captured != null);
+    const pols = EVENTS.filter((e) => e.type === "policy");
+    const polRef = EVENTS.find((e) => e.type === "refused" && e.buyerId === "desk" && /policy/.test(e.summary));
+    const show = (key, label = "Show me in the run") => key && !LIVE ? `<button class="btn" type="button" data-action="scene" data-scene="${esc(key)}">${label} →</button>` : "";
+    const cards = [
+      {
+        t: "The statement is the mandate", c: "--metal",
+        p: "Each statement is its own Metal mandate: the total, once, inside its due window. The buyer's human binding it is the acceptance. Collect early or twice and the chain refuses, and Northwind records the refusal on chain.",
+        anim: `<svg viewBox="0 0 360 86"><rect x="150" y="18" width="110" height="34" rx="8" fill="color-mix(in srgb, var(--metal) 14%, transparent)" stroke="var(--metal)" stroke-dasharray="4 4"/><text x="205" y="12" text-anchor="middle">due window</text><line x1="10" y1="35" x2="350" y2="35" stroke="var(--line)" stroke-width="2"/><circle class="loop" cx="20" cy="35" r="8" style="animation-name:g1"/><text class="loop big" x="120" y="74" text-anchor="middle" style="animation-name:flashR1;fill:var(--bad)">early: refused</text><text class="loop big" x="205" y="74" text-anchor="middle" style="animation-name:flashG;fill:var(--good)">on time: paid</text><text class="loop big" x="300" y="74" text-anchor="middle" style="animation-name:flashR2;fill:var(--bad)">again: refused</text></svg>`,
+        ids: [...stRef.map((e) => txLink(e.data.tx, `refusal ${short(e.data.tx)}`)), stCol ? txLink(stCol.data.tx, `paid ${short(stCol.data.tx)}`) : ""].join(""),
+        test: "test/statements.test.ts", scene: stRef[0] ? SCENES.of.get(stRef[0].seq) : null,
+      },
+      {
+        t: "The card hold is the guarantee", c: "--visa",
+        p: "A buyer with no history pays later on a card-secured tab: a passkey-approved Visa authorisation holds the amount, and at the due date the desk captures only what is still owed after credits. That verified payment is the buyer's first rung of credit.",
+        anim: `<svg viewBox="0 0 360 86"><text x="30" y="14">Visa hold ${cap ? usd(cap.data.authorised) : "$60.00"}</text><rect x="30" y="22" width="300" height="26" rx="7" fill="none" stroke="var(--visa)" stroke-width="2"/><rect class="loop bar0" x="30" y="22" width="300" height="26" rx="7" style="animation-name:holdIn;fill:color-mix(in srgb, var(--visa) 16%, transparent)"/><rect class="loop bar0" x="270" y="22" width="60" height="26" style="animation-name:credit;fill:var(--bar)"/><rect class="loop bar0" x="30" y="22" width="240" height="26" rx="7" style="animation-name:capture;fill:var(--visa)"/><text class="loop big" x="30" y="74" style="animation-name:fadeLate">captured ${cap ? usd(cap.data.captured) : "$48.00"} · credit ${cap ? usd(cap.data.authorised - cap.data.captured) : "$12.00"} never taken</text></svg>`,
+        ids: [hold ? `<span>Airwallex ${esc(hold.data.paymentIntentId)}</span>` : "", hold ? `<span>Airi ${esc(hold.data.airiMandateId)}</span>` : ""].join(""),
+        test: "test/card-tab.test.ts · test/card-capture.test.ts", scene: cap ? SCENES.of.get(cap.seq) : null,
+      },
+      {
+        t: "A signed policy, verified by the desk", c: "--cfo",
+        p: "The CFO types goals; Claude proposes changes to fixed fields and says what it can't express; code checks hard rails and dry-runs every buyer; the CFO's key signs the policy and its audit trail; the desk verifies the signature itself, on apply and on every load.",
+        anim: `<svg viewBox="0 0 360 86">${["goals", "Claude", "rails", "signed", "desk ✓"].map((w, i) => `<g class="loop" style="animation-name:pop${Math.min(4, i)};transform-origin:${36 + i * 72}px 35px"><rect x="${8 + i * 72}" y="18" width="58" height="34" rx="9" fill="var(--panel)" stroke="${i === 4 ? "var(--good)" : i === 3 ? "var(--cfo)" : i === 1 ? "var(--claude)" : "var(--line)"}" stroke-width="2"/><text class="big" x="${37 + i * 72}" y="40" text-anchor="middle">${w}</text></g>${i < 4 ? `<path d="M${66 + i * 72} 35h6" stroke="var(--muted)" stroke-width="2"/>` : ""}`).join("")}<text x="180" y="76" text-anchor="middle">an edited copy fails the signature and is refused</text></svg>`,
+        ids: `<span>${pols.length} signed polic${pols.length === 1 ? "y" : "ies"} applied</span>${polRef ? `<span>1 edited copy refused</span>` : ""}`,
+        test: "test/policy.test.ts", scene: pols[0] ? SCENES.of.get(pols[0].seq) : null, scene2: pols[1] ? SCENES.of.get(pols[1].seq) : null,
+      },
+      {
+        t: "Crash-safe collections", c: "--awx",
+        p: "Before sending a pull the desk records it with the mandate's spent total. If the desk dies before hearing back, the restarted desk checks the chain: if the money moved, it records that transaction and sends nothing again. A statement can never include orders in a pull still in flight.",
+        anim: `<svg viewBox="0 0 360 86"><rect x="8" y="18" width="70" height="34" rx="9" fill="var(--panel)" stroke="var(--line)" stroke-width="2"/><text class="big" x="43" y="40" text-anchor="middle">desk</text><rect x="272" y="18" width="80" height="34" rx="9" fill="var(--panel)" stroke="var(--metal)" stroke-width="2"/><text class="big" x="312" y="40" text-anchor="middle">Metal</text><circle class="loop" cx="100" cy="35" r="7" style="animation-name:pullGo;fill:var(--metal)"/><path class="loop" d="M118 8l-10 16h9l-8 16" fill="none" stroke="var(--bad)" stroke-width="3" style="animation-name:bolt"/><text class="loop big" x="180" y="76" text-anchor="middle" style="animation-name:foundIt;fill:var(--good);transform-origin:180px 70px">restarted · found on chain · pulls sent: 1</text></svg>`,
+        ids: `<span>live fault on a copy of this run:</span>${txLink("0xb6a6361fa19d0f6a32e64e145526bd866d3d946b36ad9cc6779ae5e19f03a355", "the one $20.00 pull")}`,
+        test: "test/faults.test.ts · test/money-guards.test.ts", scene: null,
+      },
+    ];
+    el.innerHTML = cards.map((g) => `<article class="panel g-card lift" style="--c:var(${g.c})">
+      <div class="g-anim">${g.anim}</div>
+      <h3 style="color:var(${g.c})">${g.t}</h3><p>${g.p}</p>
+      <div class="ev-ids">${g.ids}</div>
+      <div class="row-end"><span class="tested">✓ ${esc(g.test)}</span><span>${show(g.scene)}${g.scene2 ? " " + show(g.scene2, "Mid-book") : ""}</span></div>
+    </article>`).join("");
+  }
+
+  // ── proof page ─────────────────────────────────────────────────────────
+  function renderProofPage() {
+    const st = stateAt(EVENTS.length - 1);
+    const pr = st.k.proof;
+    const ring = "EVERY DOLLAR PROVEN · ON CHAIN · IN AIRWALLEX · IN T:0 · ";
+    $("seal").innerHTML = `<svg viewBox="0 0 260 260" role="img" aria-label="${pr ? `${pr.pass} of ${pr.total} checks pass` : "no proof yet"}">
+      <defs><path id="ringPath" d="M130 130 m-100 0 a100 100 0 1 1 200 0 a100 100 0 1 1 -200 0"/></defs>
+      <circle cx="130" cy="130" r="118" fill="var(--panel)" stroke="var(--good)" stroke-width="3"/>
+      <circle cx="130" cy="130" r="82" fill="none" stroke="var(--line)" stroke-width="2" stroke-dasharray="3 5"/>
+      <g class="seal-ring"><text><textPath href="#ringPath">${ring}${ring}</textPath></text></g>
+      <text class="seal-core" x="130" y="140" text-anchor="middle">${pr ? `${pr.pass}/${pr.total}` : "—"}</text>
+      <text class="seal-sub" x="130" y="166" text-anchor="middle">checks pass</text></svg>`;
+    // reuse the desk's proof renderer into the full page
+    const slot = $("proof");
+    const holder = document.createElement("div");
+    holder.id = "proof";
+    const saved = slot;
+    if (saved) saved.id = "proof-desk";
+    $("proof-full").innerHTML = "";
+    $("proof-full").appendChild(holder);
+    renderProof(EVENTS.length - 1);
+    holder.removeAttribute("id");
+    if (saved) saved.id = "proof";
+    // every id, checkable
+    const rows = [];
+    const kind = (e) => ({ mandate: e.data.budget != null ? `credit line bound (${usd(e.data.budget)})` : "mandate", statement: "statement accepted (its own mandate)", collect: e.data.statementId ? "statement collected" : "credit-line collection", refused: "collection refused, recorded on chain" })[e.type] || e.type;
+    for (const e of EVENTS) {
+      const d = e.data || {};
+      const who = names()[e.buyerId] || e.buyerId;
+      if (d.tx) rows.push(`<tr><td>Metal</td><td>${esc(kind(e))}</td><td>${esc(who)}</td><td class="num">${d.amount != null ? usd(Number(d.amount)) : ""}</td><td class="mono">${txLink(d.tx)}</td></tr>`);
+      if (e.type === "vic" && d.paymentIntentId) rows.push(`<tr><td>Airwallex</td><td>${d.captured != null ? `card capture ${usd(d.captured)} of ${usd(d.authorised)}` : d.checks && "authorised" in d.checks ? "card authorisation (hold)" : "earlier Visa payment, re-read"}</td><td>${esc(who)}</td><td class="num">${d.captured != null ? usd(d.captured) : ""}</td><td class="mono">${esc(d.paymentIntentId)}</td></tr>`);
+      if (e.type === "settle" && d.conversionId) rows.push(`<tr><td>Airwallex</td><td>${esc(e.summary.replace(/^deposited /, "deposit "))}</td><td>${esc(who)}</td><td class="num"></td><td class="mono">${esc(short(d.conversionId))}</td></tr>`);
+      if (e.type === "books" && d.journalEntryId) rows.push(`<tr><td>T:0</td><td>${esc(e.summary)}</td><td>${esc(who)}</td><td class="num"></td><td class="mono">${esc(d.journalEntryId)}</td></tr>`);
+    }
+    $("txs").innerHTML = `<thead><tr><th>Rail</th><th>What</th><th>Buyer</th><th>Amount</th><th>Id</th></tr></thead><tbody>${rows.join("")}</tbody>`;
+  }
+
+  // ── built on ───────────────────────────────────────────────────────────
+  function renderBuilt() {
+    const st = stateAt(EVENTS.length - 1);
+    const count = (t, f = () => true) => EVENTS.filter((e) => e.type === t && f(e.data || {}, e)).length;
+    const model = (EVENTS.find((e) => e.data && e.data.model) || { data: {} }).data.model || "Claude";
+    const panels = [
+      { n: "Metal", c: "--metal", ic: "link", role: "where credit lives and money moves", used: ["Supplier-issued debit mandates bound by each buyer's human: the credit line and its cap", "A statement as its own mandate: budget = total, one payment, a due window", "Supplier-held pull key; replace mandate when the human cuts the line", "Refusals recorded on chain by the supplier"], stats: [[count("mandate"), "mandates bound"], [count("statement"), "statement mandates"], [st.k.pulls, "collections"], [st.k.refusals, "refusals on chain"]], code: "src/metal/agent.ts · Desk.collectStatement" },
+      { n: "Visa Intelligent Commerce · Airi", c: "--visa", ic: "card", role: "how a new buyer earns trust", used: ["Passkey-approved mandate per card statement (VIC via Airi)", "Single-use credential read once into a 0600 file, then deleted", "Pre-authorise the full statement; capture only the undisputed amount", "The verified capture counts toward terms once, for one buyer"], stats: [[st.k.holds, "card holds"], [usd(st.k.captured), "captured"], [count("vic"), "Visa events read back"]], code: "src/visa/card-statement.ts · Desk.verifyCardCapture" },
+      { n: "Airwallex", c: "--awx", ic: "globe", role: "the supplier's bank", used: ["Payment Acceptance: create, confirm (pre-auth), partial capture, read back", "Every Visa payment re-read before it counts", "FX quote and conversion USD → SGD, with a refund reserve", "Global Account deposits referencing the Metal tx (sandbox simulation)"], stats: [[st.k.settled, "settlements"], [st.k.sgd.toFixed(2), "SGD converted"], [count("vic"), "payment intents read"]], code: "src/settlement/bridge.ts · src/airwallex/client.ts" },
+      { n: "T:0", c: "--t0", ic: "book", role: "the books that decide and record", used: ["Payment history read over MCP decides net-30 vs net-7 vs prepay", "Every settled collection posted as a balanced journal entry tied to its Metal tx", "Idempotent posting (a repeat is answered, not doubled)"], stats: [[st.k.journals, "journal entries"], [count("books", (d) => d.source === "t0" && !d.journalEntryId), "history reads"]], code: "src/books/books.ts" },
+      { n: "Claude", c: "--claude", ic: "spark", role: "reads and proposes, never decides money", used: ["Buyer agents with typed tools (catalog, account, offer, order) via the tool runner", "Structured outputs: the CFO policy compiler and the dispute reader", "Says what it can't express instead of guessing", `Model: ${model}`], stats: [[count("agent"), "agent decisions"], [count("policy"), "policies compiled"], [count("dispute"), "disputes read"]], code: "src/agents/buyer.ts · src/policy/policy.ts · src/disputes/reader.ts" },
+      { n: "Northwind desk (code)", c: "--accent", ic: "desk", role: "where every dollar is decided", used: ["Credit engine in integer cents: limit = min(terms cap, mandate headroom, balance)", "Rails on policy; credits at the price charged; whole-order collections", "Crash-safe pulls reconciled from the chain", "21 proof checks after every run"], stats: [[EVENTS.length, "events logged"], [st.k.proof ? `${st.k.proof.pass}/${st.k.proof.total}` : "—", "proof checks"]], code: "src/desk/desk.ts · src/proof/checker.ts" },
+    ];
+    $("built").innerHTML = panels.map((p) => `<article class="panel bpanel lift" style="--c:var(${p.c})">
+      <div class="bh"><div class="bico">${svgIcon(p.ic)}</div><div><h3>${esc(p.n)}</h3><div class="role">${esc(p.role)}</div></div></div>
+      <div class="stats">${p.stats.map(([v, l]) => `<span class="stat"><b>${esc(String(v))}</b>${esc(l)}</span>`).join("")}</div>
+      <ul class="checks">${p.used.map((u) => `<li>${esc(u)}</li>`).join("")}</ul>
+      <div class="code">${esc(p.code)}</div></article>`).join("");
+  }
+
+  // ── guided tour ────────────────────────────────────────────────────────
+  const TOUR = [
+    { view: "overview", target: ".hero-copy h1", title: "TAB in one line", body: "Agents can buy, but only by paying up front. TAB lets a supplier sell to AI agents on credit, and still get every dollar, provably." },
+    { view: "overview", target: "#receipt", title: "A real tab from a live run", body: "Acme's Claude agent bought three things on net terms and took the 3% early-pay discount. The stamp links to the actual Metal transactions that collected it." },
+    { view: "desk", target: ".railcard", scene: "1", title: "The rails", body: "Every packet you'll see is a real event: Metal mandates and collections, the Visa card hold, Airwallex settlement, T:0 journal entries. Here Acme's human binds a $400 credit line." },
+    { view: "desk", target: ".railcard", scene: "1b", title: "The CFO types goals", body: "Claude turns plain English into policy changes; code checks the rails, dry-runs every buyer, and the desk verifies the CFO's signature. A copy edited after signing is refused." },
+    { view: "desk", target: "#buyers .card:nth-child(2)", scene: ["3", "3b", "3c", "3d"], title: "A new buyer climbs the ladder", body: "Globex has no history. A passkey-approved Visa hold secures a 7-day tab; after a $12 credit, only $48 of $60 is captured, and that payment earns it net-7." },
+    { view: "desk", target: ".railcard", scene: "5b", title: "Mid-book, the book re-prices", body: "The CFO caps any buyer at $100 with tabs open. The dry run shows the excess, and once the signed policy lands the desk collects it on chain." },
+    { view: "desk", target: ".railcard", scene: "6b", title: "The statement is the mandate", body: "Acme's statement is its own Metal mandate. Watch the early collection bounce off Metal: refused on chain, and the refusal is recorded." },
+    { view: "guarantees", target: "#g-grid", title: "Four guarantees", body: "Each is enforced by a rail or by code, visible in the run, and covered by a test, including a live crash in the middle of a pull." },
+    { view: "proof", target: "#seal", title: "Every dollar proven", body: "After the run the desk re-reads everything: transfers on chain, card captures in Airwallex, journal entries in T:0. Every id on this page is checkable." },
+    { view: "built-on", target: "#built", title: "Built on", body: "Metal, Visa via Airi, Airwallex, T:0 and Claude, each doing one job, with the numbers from this run. That's TAB." },
+  ];
+  let tourAt = -1;
+  function startTour() { tourAt = 0; $("tour").hidden = false; tourGo(); }
+  function endTour() { tourAt = -1; $("tour").hidden = true; sceneGen++; }
+  async function tourGo() {
+    const s = TOUR[tourAt];
+    if (!s) return endTour();
+    showView(s.view, { keepScroll: true });
+    $("tourStep").textContent = `Step ${tourAt + 1} of ${TOUR.length}`;
+    $("tourTitle").textContent = s.title;
+    $("tourBody").textContent = s.body;
+    $("tourDots").innerHTML = TOUR.map((_, i) => `<i class="${i === tourAt ? "on" : ""}"></i>`).join("");
+    $("tourBack").disabled = tourAt === 0;
+    $("tourNext").textContent = tourAt === TOUR.length - 1 ? "Finish" : "Next";
+    // Instant scroll: a smooth one is cancelled when the replay re-renders the element mid-scroll.
+    const target = document.querySelector(s.target);
+    if (target) target.scrollIntoView({ behavior: "auto", block: "center" });
+    await sleep(60);
+    placeTour(document.querySelector(s.target));
+    if (s.scene && !LIVE) {
+      (async () => {
+        for (const k of [].concat(s.scene)) { if (TOUR[tourAt] !== s) return; await playScene(k, { scroll: false }); }
+        if (TOUR[tourAt] === s) placeTour(document.querySelector(s.target));
+      })();
+    }
+  }
+  function placeTour(target) {
+    const spot = $("tourSpot");
+    const card = $("tourCard");
+    if (!target) { spot.style.cssText = "left:50%;top:50%;width:0;height:0"; card.style.left = "50%"; card.style.top = "50%"; return; }
+    const r = target.getBoundingClientRect();
+    const pad = 8;
+    spot.style.left = `${r.left - pad}px`; spot.style.top = `${r.top - pad}px`;
+    spot.style.width = `${r.width + pad * 2}px`; spot.style.height = `${Math.min(r.height + pad * 2, innerHeight - 24)}px`;
+    const cw = card.offsetWidth || 360;
+    const ch = card.offsetHeight || 200;
+    const fits = (t) => t >= 12 && t + ch <= innerHeight - 12;
+    let top, left;
+    if (fits(r.bottom + 16)) { top = r.bottom + 16; left = r.left; }          // below
+    else if (fits(r.top - ch - 16)) { top = r.top - ch - 16; left = r.left; } // above
+    else if (innerWidth - r.right >= cw + 32) { left = r.right + 16; top = r.top; } // beside, right
+    else if (r.left >= cw + 32) { left = r.left - cw - 16; top = r.top; }          // beside, left
+    else { top = innerHeight - ch - 16; left = r.left; }                           // overlay at the bottom
+    top = Math.min(Math.max(12, top), innerHeight - ch - 12);
+    left = Math.min(Math.max(16, left), innerWidth - cw - 16);
+    card.style.top = `${top}px`; card.style.left = `${left}px`;
+  }
+  $("tourNext")?.addEventListener("click", () => { tourAt++; tourGo(); });
+  $("tourBack")?.addEventListener("click", () => { tourAt = Math.max(0, tourAt - 1); tourGo(); });
+  $("tourSkip")?.addEventListener("click", endTour);
+  $("tourBtn")?.addEventListener("click", startTour);
+  addEventListener("keydown", (e) => {
+    if (tourAt < 0) return;
+    if (e.key === "Escape") endTour();
+    if (e.key === "ArrowRight" || e.key === "Enter") { e.preventDefault(); e.stopImmediatePropagation(); tourAt++; tourGo(); }
+    if (e.key === "ArrowLeft") { e.preventDefault(); e.stopImmediatePropagation(); tourAt = Math.max(0, tourAt - 1); tourGo(); }
+  }, true);
+  addEventListener("resize", () => { if (tourAt >= 0) placeTour(document.querySelector(TOUR[tourAt].target)); });
+  addEventListener("scroll", () => { if (tourAt >= 0) placeTour(document.querySelector(TOUR[tourAt].target)); }, { passive: true });
+
   // ── boot ───────────────────────────────────────────────────────────────
   async function boot() {
     document.body.classList.toggle("is-live", LIVE);
@@ -520,7 +801,7 @@
         for (const e of d.events) {
           EVENTS.push(e);
           SCENES = sceneModel(); renderScenes();
-          enqueue(e).then(() => { idx = EVENTS.indexOf(e); render(true); });
+          enqueue(e).then(() => { idx = EVENTS.indexOf(e); render(true); if (view && view !== "desk") showView(view, { force: true, keepScroll: true }); });
         }
       };
     } else {
@@ -529,6 +810,9 @@
       const ranAt = $("ranAt"); if (ranAt) ranAt.textContent = new Date(RUN.ranAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
       renderScenes(); render(false); wirePlayer();
     }
+    showView(location.hash.slice(1) || (LIVE ? "desk" : "overview"), { force: true, keepScroll: true });
+    requestAnimationFrame(moveInk);
+    if (document.fonts) document.fonts.ready.then(moveInk);
   }
   boot();
 })();

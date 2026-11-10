@@ -67,7 +67,9 @@ let page = readFileSync("public/index.html", "utf8");
 page = swap(page, '<link rel="stylesheet" href="brand.css">', `<style>\n${readFileSync("public/brand.css", "utf8")}\n</style>`);
 page = swap(page, '<script src="app.js"></script>', `<script>\n${readFileSync("public/app.js", "utf8").replace(/<\/script/gi, "<\\/script")}\n</script>`);
 page = swap(page, "<!--RUN-->", `<script>window.__RUN__ = ${json};</script>`);
-page = swap(page, 'href="logo.svg"', `href="data:image/svg+xml,${encodeURIComponent(readFileSync("public/logo.svg", "utf8"))}"`);
+page = swap(page, 'href="favicon.svg"', `href="data:image/svg+xml,${encodeURIComponent(readFileSync("public/favicon.svg", "utf8"))}"`);
+page = swap(page, 'href="favicon.ico"', `href="data:image/x-icon;base64,${readFileSync("public/favicon.ico").toString("base64")}"`);
+page = swap(page, 'href="apple-touch-icon.png"', `href="data:image/png;base64,${readFileSync("public/apple-touch-icon.png").toString("base64")}"`);
 page = swap(page, "<title>TAB Desk</title>", "<title>TAB Desk Replay</title>");
 writeFileSync("docs/index.html", page);
 

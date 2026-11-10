@@ -6,7 +6,10 @@
 <title>TAB Desk</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="description" content="TAB: net terms for AI agents. A supplier credit desk on Metal, Visa Intelligent Commerce, Airwallex and T:0, with every dollar proven.">
-<link rel="icon" type="image/svg+xml" href="logo.svg">
+<meta name="theme-color" content="#15171c">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="icon" sizes="32x32" href="favicon.ico">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
@@ -15,7 +18,7 @@
 <body>
 <header class="top">
   <div class="wrap">
-    <div class="brand">
+    <a class="brand" href="#overview" aria-label="TAB home">
       <svg id="mark" class="mark" viewBox="0 0 64 64" role="img" aria-label="TAB logo: a buyer's tab, paid later, landing as a check">
         <path class="ink" fill="none" stroke-width="4.5" stroke-linejoin="round" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100"
               d="M9 23a6 6 0 0 1 6-6h10.6a4 4 0 0 1 3.1 1.5L32.5 23H49a6 6 0 0 1 6 6v20a6 6 0 0 1-6 6H15a6 6 0 0 1-6-6Z">
@@ -29,28 +32,22 @@
           <animate attributeName="stroke-dashoffset" from="100" to="0" begin="1.25s" dur="0.45s" fill="freeze" calcMode="spline" keySplines="0.3 0 0.2 1" keyTimes="0;1"/>
         </path>
       </svg>
-      <div><div class="word">TAB<span>.</span></div><span class="sub">Net terms for AI agents · Northwind Data's credit desk</span></div>
+      <div><div class="word">TAB<span>.</span></div><span class="sub">Net terms for AI agents</span></div>
+    </a>
+    <nav class="tabs" id="tabs" aria-label="Sections">
+      <a href="#overview" data-view="overview">Overview</a>
+      <a href="#desk" data-view="desk">Live desk</a>
+      <a href="#guarantees" data-view="guarantees">Guarantees</a>
+      <a href="#proof" data-view="proof">Proof</a>
+      <a href="#built-on" data-view="built-on">Built on</a>
+      <i class="ink-bar" id="inkbar" aria-hidden="true"></i>
+    </nav>
+    <div class="head-actions">
+      <button class="btn tour-btn" id="tourBtn" type="button"><span class="dot"></span>Take the tour</button>
+      <span class="mode" id="mode"><i></i>Desk</span>
     </div>
-    <span class="mode" id="mode"><i></i>Desk</span>
   </div>
 </header>
-
-<section class="wrap intro" id="intro">
-  <div>
-    <h1>AI agents buy on credit. <em>The desk still gets every dollar, and proves it.</em></h1>
-    <p>Every other agent-payments project teaches agents to hear "no". TAB says "yes, pay later". Northwind Data sells to buyer agents on terms: <strong>Claude</strong> runs the agents and reads the messy text, <strong>code</strong> decides every price, limit, credit and collection, and <strong>Metal, Visa via Airi, Airwallex and T:0</strong> move and record the money.</p>
-    <p class="replay-only">This is one live run, <strong id="runId"></strong>, played back event by event. Each Metal transaction links to the public testnet explorer; Airwallex and T:0 ids come from private sandboxes that the desk's checker read back after the run.</p>
-  </div>
-  <aside class="labelled" aria-label="What is labelled">
-    <h2>Labelled, not hidden</h2>
-    <ul>
-      <li>Globex's and Initech's books are a stand-in; Acme's are real T:0 sandbox records.</li>
-      <li>Airwallex deposits are sandbox simulations; quotes, conversions and card payments are real sandbox calls.</li>
-      <li>Due dates are compressed to minutes so the run fits a video.</li>
-      <li>Stale units are set by the script, standing in for delivery QA.</li>
-    </ul>
-  </aside>
-</section>
 
 <section class="wrap kpis" aria-label="Headline numbers">
   <div class="kpi"><div class="v" id="k-terms">$0.00</div><div class="l">Put on terms</div></div>
@@ -59,33 +56,123 @@
   <div class="kpi proof"><div class="v" id="k-proof">—</div><div class="l">Proof checks</div></div>
 </section>
 
-<section class="wrap rails" aria-label="Rails map">
-  <div class="railcard"><div id="rails"></div><div class="legend" id="railstats"></div></div>
-</section>
-
-<section class="player" aria-label="Replay controls">
-  <div class="wrap">
-    <div class="controls replay-only">
-      <button class="btn" id="restart" type="button" aria-label="Back to the start">⏮ Start</button>
-      <button class="btn" id="back" type="button" aria-label="Previous event">◀</button>
-      <button class="btn primary" id="play" type="button">▶ Play</button>
-      <button class="btn" id="fwd" type="button" aria-label="Next event">▶</button>
-      <select class="btn" id="speed" aria-label="Playback speed">
-        <option value="1800">1×</option>
-        <option value="1100" selected>2×</option>
-        <option value="600">4×</option>
-      </select>
-      <div class="progress"><input id="scrub" type="range" min="0" value="0" aria-label="Event position"><output id="pos"></output></div>
+<!-- ── Overview ──────────────────────────────────────────── -->
+<section class="view" id="v-overview" data-view="overview">
+  <div class="wrap hero">
+    <div class="hero-copy">
+      <p class="eyebrow">Airwallex Agentic Banking Hackathon · Northwind Data's credit desk</p>
+      <h1>AI agents can buy. <em>Now they can buy on credit</em>, and the supplier still gets every dollar.</h1>
+      <p class="lede">Businesses run on trade credit: net-30, 2% off for paying early. Agents get none of it: they prepay by card. TAB is the supplier's credit desk for agent buyers. <strong>Claude</strong> runs the agents and reads the messy text; <strong>code</strong> decides every price, limit, credit and collection; <strong>Metal</strong>, <strong>Visa via Airi</strong>, <strong>Airwallex</strong> and <strong>T:0</strong> move and record the money.</p>
+      <div class="cta">
+        <button class="btn primary big" type="button" data-action="tour">▶ Take the 90-second tour</button>
+        <button class="btn big" type="button" data-action="watch">Watch the run</button>
+      </div>
+      <p class="replay-only small muted">Everything on this page is one live run, <strong id="runId"></strong>: Metal testnet, the Airwallex and T:0 sandboxes, real Claude calls and one passkey-approved Visa hold. Each Metal transaction links to the public explorer.</p>
     </div>
-    <div class="scenes" id="scenes" role="group" aria-label="Jump to a scene"></div>
-    <div class="caption" id="caption"></div>
+    <div class="receipt-stage" aria-label="Acme's tab with Northwind, from the run">
+      <div class="receipt" id="receipt"></div>
+    </div>
+  </div>
+
+  <div class="wrap section">
+    <h2 class="sec-title"><span>01</span>The gap</h2>
+    <div class="trio">
+      <article class="panel lift"><div class="pico" data-icon="card"></div><h3>Agents prepay</h3><p>An AI buyer has a card and a budget, so it pays up front, every time. Its company's cash is tied up and the early-pay discounts finance teams live on never happen.</p></article>
+      <article class="panel lift"><div class="pico" data-icon="receipt"></div><h3>Suppliers can't say yes</h3><p>Extending terms means trusting the buyer to pay later. With software buyers there is no credit file, no signature, and no way to collect if it doesn't.</p></article>
+      <article class="panel lift"><div class="pico" data-icon="link"></div><h3>Nothing enforces the terms</h3><p>A promise in a chat log is not a payment. Credit needs limits a human signed, collections the buyer can't dodge, and books that tie out.</p></article>
+    </div>
+  </div>
+
+  <div class="wrap section">
+    <h2 class="sec-title"><span>02</span>How TAB works</h2>
+    <ol class="steps" id="steps">
+      <li class="step"><div class="sn">1</div><h3>Earn terms</h3><p>A Visa-verified payment (or a card-secured tab) plus the books in T:0 decide prepay, net-7 or net-30. The buyer's human caps it all with a Metal debit mandate.</p><span class="rail-chip" style="--c:var(--visa)">Visa · Airi</span><span class="rail-chip" style="--c:var(--t0)">T:0</span><span class="rail-chip" style="--c:var(--metal)">Metal</span></li>
+      <li class="step"><div class="sn">2</div><h3>Agents shop on policy</h3><p>Claude buyer agents compare card, card tab, net terms and the early-pay discount. Every offer is priced by code; the CFO's goals become a signed, rail-checked policy.</p><span class="rail-chip" style="--c:var(--claude)">Claude</span><span class="rail-chip" style="--c:var(--cfo)">CFO policy</span></li>
+      <li class="step"><div class="sn">3</div><h3>The statement is the mandate</h3><p>Each statement becomes its own Metal mandate: the total, once, inside its due window. The chain refuses early or repeat collections and records each refusal.</p><span class="rail-chip" style="--c:var(--metal)">Metal</span></li>
+      <li class="step"><div class="sn">4</div><h3>Settle and prove</h3><p>Collections settle into Airwallex and convert to SGD, post to T:0 as journal entries, and 21 checks tie every dollar back to the chain.</p><span class="rail-chip" style="--c:var(--awx)">Airwallex</span><span class="rail-chip" style="--c:var(--t0)">T:0</span></li>
+    </ol>
+  </div>
+
+  <div class="wrap section">
+    <h2 class="sec-title"><span>03</span>Claude proposes, code decides</h2>
+    <div class="split">
+      <div class="panel"><h3 class="tint-claude">Claude does the reading</h3><ul class="checks"><li>Buyer agents choose what to buy and how to pay, through typed tools</li><li>Compiles the CFO's plain-English goals into proposed policy changes</li><li>Reads a dispute email into claims</li><li>Says what it can't express (net-90, "until month end") instead of guessing</li></ul></div>
+      <div class="panel"><h3 class="tint-code">Code does the deciding</h3><ul class="checks"><li>Prices, limits and terms in integer cents</li><li>Hard rails on every policy change, rejected never clamped; a signature the desk verifies itself</li><li>Credits only for units the supplier's own QA flagged, at the price charged</li><li>Collections only through mandates the buyer's human signed</li></ul></div>
+    </div>
+    <aside class="labelled" aria-label="What is labelled">
+      <h2>Labelled, not hidden</h2>
+      <ul>
+        <li>Globex's and Initech's books are a stand-in; Acme's are real T:0 sandbox records.</li>
+        <li>Airwallex deposits are sandbox simulations; quotes, conversions and card payments are real sandbox calls.</li>
+        <li>Due dates are compressed to minutes so the run fits a video; stale units are set by the script, standing in for delivery QA.</li>
+      </ul>
+    </aside>
   </div>
 </section>
 
-<main class="wrap grid">
-  <section aria-label="Buyer agents"><h2 class="sec">Buyer agents on credit</h2><div id="buyers"></div></section>
-  <section aria-label="Proof and events"><div id="proof"></div><h2 class="sec">What the desk did</h2><ul class="timeline" id="timeline"></ul></section>
-</main>
+<!-- ── Live desk ─────────────────────────────────────────── -->
+<section class="view" id="v-desk" data-view="desk">
+  <div class="wrap rails" aria-label="Rails map">
+    <div class="railcard"><div id="rails"></div><div class="legend" id="railstats"></div></div>
+  </div>
+  <div class="player" aria-label="Replay controls">
+    <div class="wrap">
+      <div class="controls replay-only">
+        <button class="btn" id="restart" type="button" aria-label="Back to the start">⏮ Start</button>
+        <button class="btn" id="back" type="button" aria-label="Previous event">◀</button>
+        <button class="btn primary" id="play" type="button">▶ Play</button>
+        <button class="btn" id="fwd" type="button" aria-label="Next event">▶</button>
+        <select class="btn" id="speed" aria-label="Playback speed">
+          <option value="1800">1×</option>
+          <option value="1100" selected>2×</option>
+          <option value="600">4×</option>
+        </select>
+        <div class="progress"><input id="scrub" type="range" min="0" value="0" aria-label="Event position"><output id="pos"></output></div>
+      </div>
+      <div class="scenes" id="scenes" role="group" aria-label="Jump to a scene"></div>
+      <div class="caption" id="caption"></div>
+    </div>
+  </div>
+  <main class="wrap grid">
+    <section aria-label="Buyer agents"><h2 class="sec">Buyer agents on credit</h2><div id="buyers"></div></section>
+    <section aria-label="Proof and events"><div id="proof"></div><h2 class="sec">What the desk did</h2><ul class="timeline" id="timeline"></ul></section>
+  </main>
+</section>
+
+<!-- ── Guarantees ────────────────────────────────────────── -->
+<section class="view" id="v-guarantees" data-view="guarantees">
+  <div class="wrap section">
+    <h2 class="sec-title"><span>04</span>Four things that cannot go wrong</h2>
+    <p class="lede narrow">Each guarantee is enforced by a rail or by code, shown happening in the run, and covered by a test. Press "Show me" to jump the replay to that moment.</p>
+    <div class="g-grid" id="g-grid"></div>
+  </div>
+</section>
+
+<!-- ── Proof ─────────────────────────────────────────────── -->
+<section class="view" id="v-proof" data-view="proof">
+  <div class="wrap section proof-page">
+    <div class="seal-wrap" id="seal"></div>
+    <div>
+      <h2 class="sec-title"><span>05</span>Every dollar proven</h2>
+      <p class="lede narrow">After the run, the desk re-reads everything from the outside: the buyers' books must balance, every collection must be one transfer of exactly its amount from the buyer to Northwind on chain, every refusal must be on chain, every card capture must match Airwallex, and every journal entry must equal what was collected.</p>
+      <div id="proof-full"></div>
+    </div>
+  </div>
+  <div class="wrap section">
+    <h3 class="sub-title">Check it yourself</h3>
+    <div class="table-wrap"><table class="txs" id="txs"></table></div>
+    <p class="small muted">Metal transactions open in the public testnet explorer. Airwallex and T:0 ids are from private sandboxes; the desk's checker read each one back after the run.</p>
+  </div>
+</section>
+
+<!-- ── Built on ──────────────────────────────────────────── -->
+<section class="view" id="v-built-on" data-view="built-on">
+  <div class="wrap section">
+    <h2 class="sec-title"><span>06</span>Built on</h2>
+    <p class="lede narrow">What each rail does in TAB, the features used, and what this run did with them.</p>
+    <div class="built" id="built"></div>
+  </div>
+</section>
 
 <footer>
   <div class="wrap">
@@ -93,6 +180,22 @@
     <div>TAB · Airwallex Agentic Banking Hackathon · team Four Eyes, One Human</div>
   </div>
 </footer>
+
+<div class="tour" id="tour" hidden>
+  <div class="tour-spot" id="tourSpot"></div>
+  <div class="tour-card" id="tourCard" role="dialog" aria-modal="true" aria-labelledby="tourTitle">
+    <div class="tour-step" id="tourStep"></div>
+    <h3 id="tourTitle"></h3>
+    <p id="tourBody"></p>
+    <div class="tour-dots" id="tourDots"></div>
+    <div class="tour-nav">
+      <button class="btn" type="button" id="tourSkip">Close</button>
+      <span class="grow"></span>
+      <button class="btn" type="button" id="tourBack">Back</button>
+      <button class="btn primary" type="button" id="tourNext">Next</button>
+    </div>
+  </div>
+</div>
 <!--RUN-->
 <script src="app.js"></script>
 </body>

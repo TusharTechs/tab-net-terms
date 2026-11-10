@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <title>TAB</title>
+  <style>
+    .card { fill: #ffffff; stroke: #16181d; }
+    @media (prefers-color-scheme: dark) { .card { fill: #16181d; stroke: #eceef2; } }
+  </style>
+  <!-- The finished mark (no animation): a buyer's tab, landing as a check. -->
+  <path class="card" stroke-width="5" stroke-linejoin="round" d="M8 23a6 6 0 0 1 6-6h11a4 4 0 0 1 3.2 1.6L32 23h18a6 6 0 0 1 6 6v20a6 6 0 0 1-6 6H14a6 6 0 0 1-6-6Z"/>
+  <path fill="none" stroke="#ff5a1f" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" d="M21 38l7.5 7.5L43 31"/>
+</svg>
