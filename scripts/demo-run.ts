@@ -8,7 +8,7 @@
  */
 import { existsSync, renameSync } from "node:fs";
 import { AirwallexClient } from "../src/airwallex/client.js";
-import { StandinBooks } from "../src/books/books.js";
+import { bookCollection, RoutedBooks, StandinBooks, T0Books, T0Mcp } from "../src/books/books.js";
 import { claude } from "../src/claude/client.js";
 import { config } from "../src/config.js";
 import { Desk, type DeskState, fileStore } from "../src/desk/desk.js";
@@ -34,7 +34,14 @@ const DESK_FILE = "data/desk-demo.json";
 if (existsSync(DESK_FILE)) renameSync(DESK_FILE, `data/desk-demo.${Date.now()}.bak.json`);
 const store = fileStore(DESK_FILE);
 const state: DeskState = { buyers: {}, events: [] };
-const books = new StandinBooks("fixtures/standin-books.json");
+// Books: Acme's history is real T:0 data (mapped to an existing T:0 sandbox customer; this key can
+// read records and post journal entries but not create records). Globex stays on the labelled stand-in.
+const T0_ACME_CUSTOMER = "t0_customer_prod_e9882b26f7979f04d28e";
+const t0 = cfg.T0_API_KEY ? new T0Mcp(cfg.T0_API_KEY) : undefined;
+const standin = new StandinBooks("fixtures/standin-books.json");
+const t0Books = t0 ? new T0Books(t0, { acme: T0_ACME_CUSTOMER }) : undefined;
+if (t0Books) await t0Books.refresh();
+const books = t0Books ? new RoutedBooks({ acme: t0Books }, standin) : standin;
 const metal = new MetalAgent();
 const desk = new Desk(state, { supplierPayee: SUPPLIER, metal, balanceOf: (a) => usdzBalance(cfg.METAL_RPC_URL!, a), books, now: () => new Date(), persist: store.save });
 const awx = new AirwallexClient({ baseUrl: cfg.AWX_BASE_URL, clientId: cfg.AWX_CLIENT_ID, apiKey: cfg.AWX_API_KEY });
@@ -77,6 +84,12 @@ await pause();
 
 // ── Scene 2: Acme's human binds a debit mandate → net-30; agent orders go on the tab ─
 say("Scene 2 · Acme's human binds a $90 debit mandate; its agent orders on net-30");
+if (t0 && t0Books) {
+  const cust = await t0.call<{ data?: { name?: string } }>("get_one_customer", { external_id: T0_ACME_CUSTOMER });
+  const hist = await t0Books.invoicesFor("acme");
+  const onTime = hist.filter((i) => i.paidAt && i.paidAt.getTime() <= i.dueDate.getTime() + 3 * 864e5).length;
+  desk.recordBooks("acme", `books (T:0): ${onTime} of ${hist.length} invoices paid on time · T:0 customer "${cust.data?.name ?? T0_ACME_CUSTOMER}"`, { source: "t0", customer: T0_ACME_CUSTOMER, asOf: t0Books.asOf });
+}
 await bindMandate("acme", ACME.account, ACME.owner, 9_000);
 await desk.evaluate("acme");
 tail();
@@ -125,6 +138,11 @@ if (collect) {
   const out = await settleCollection(awx, new FileLedger("data/settlements.json"), USD_GLOBAL_ACCOUNT, { metalTxHash: String(collect.data.tx), amount: Number(collect.data.amount), payerName: "Acme procurement agent" }, async () => false);
   if (out.kind === "converted") {
     desk.recordSettlement("acme", `deposited $${(Number(collect.data.amount) / 100).toFixed(2)} into Airwallex, kept $${(out.reserved / 100).toFixed(2)} refund reserve, converted ${out.quote.sell_amount} USD → ${out.quote.buy_amount} SGD`, { depositId: out.depositId, quoteId: out.quote.quote_id, conversionId: out.conversionId, rate: out.quote.client_rate, metalTx: collect.data.tx });
+    if (t0) {
+      await pause();
+      const je = await bookCollection(t0, { customerExternalId: T0_ACME_CUSTOMER, amount: Number(collect.data.amount), currency: "USD", metalTx: String(collect.data.tx), depositId: out.depositId, conversionId: out.conversionId, date: new Date() });
+      desk.recordBooks("acme", `booked in T:0${je.jeNumber ? ` as ${je.jeNumber}` : ""}: debit Airwallex cash, credit A/R $${(Number(collect.data.amount) / 100).toFixed(2)}${je.alreadyBooked ? " (already booked)" : ""}`, { source: "t0", journalEntryId: je.journalEntryId, metalTx: collect.data.tx });
+    }
   } else {
     desk.recordSettlement("acme", `settlement: ${out.kind}${"reason" in out ? ` (${out.reason})` : ""}`, { ...out } as any);
   }

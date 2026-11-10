@@ -123,7 +123,7 @@ export class Desk {
     const unchanged = lastDecision?.summary === summary && decision.collectNow === 0 && decision.escalate === 0;
     if (!unchanged) this.emit(b.id, "decision", summary, {
       decision,
-      inputs: { mandate: mandate && { id: mandate.mandateId, budget: mandate.budget, spent: mandate.spent, revoked: mandate.revoked }, balance, booksSource: this.deps.books.source, invoices: invoices.length },
+      inputs: { mandate: mandate && { id: mandate.mandateId, budget: mandate.budget, spent: mandate.spent, revoked: mandate.revoked }, balance, booksSource: this.deps.books.sourceFor?.(b.id) ?? this.deps.books.source, invoices: invoices.length },
     });
     b.previous = { terms: decision.terms, limit: decision.limit };
 

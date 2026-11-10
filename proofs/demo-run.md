@@ -1,14 +1,22 @@
-# Full demo run (2026-11-09, run `dmw9igrle`)
+# Full demo run (2026-11-10, run `dmwa9mdjr`)
 
-`npx tsx scripts/demo-run.ts` plays six scenes into `data/desk-demo.json`; the demo screen (`npm run screen`) streams them. Live: Metal testnet, the dispute model (`claude-opus-5-5`), Airwallex sandbox. Labelled: books are the stand-in (`fixtures/standin-books.json`) until T:0 access works; the Airwallex deposit is a sandbox simulation (it cannot receive stablecoins).
+`npx tsx scripts/demo-run.ts` plays six scenes into `data/desk-demo.json`; the demo screen (`npm run screen`) streams them. Live: Metal testnet, T:0 sandbox, the dispute model (`claude-opus-5-5`), Airwallex sandbox.
+
+What is labelled rather than live:
+- **Globex's books** are the stand-in (`fixtures/standin-books.json`). The T:0 sandbox has no customer with an open past-due invoice, and this T:0 key can read records and post journal entries but cannot create records (`403 CAPI72`).
+- **The Airwallex deposit** is a sandbox simulation (the sandbox cannot receive stablecoins); quote and conversion are real sandbox calls.
 
 | Scene | Result | Id |
 | --- | --- | --- |
 | 1. Onboarding | Acme's passkey-approved VIC payment (statement STM-20261109-E5DP, $186.00) recorded as its on-ramp to credit | payment intent `int_sgpvtdh4nhnzlj965wb` (see vic-statement.md) |
-| 2. Terms | Acme's owner binds a $90 debit mandate. Limit $78.30: capped by Acme's on-chain balance after an earlier run. Three agent orders ($6.00, $7.00, $5.00) go on the tab, net-30 | bind `0xdc2d72fe3afdd4ce4e405960b745cac03811c1597a4b395bd26195a7a4a72e45` |
-| 3. Books | Globex (`0xF6282AAD66B0dD563c714aad5E1D24019C1598C5`) binds a $30 mandate; stand-in books show INV-2002 22 days overdue and no VIC payment yet → **prepay**; its $40 order is routed to VIC prepay | bind `0x0b68dc33ca6980ee9f69b78c3da7fe59710b1f6eecf2ffa291cd1f8a2701195e` |
-| 4. Dispute | Email: "never agreed to 4 cents", "all 150 rows stale". Model extracts claims; code upholds the price claims with order proof and credits only the 15 QA-flagged rows: **$0.60** | read by `claude-opus-5-5` |
-| 5. Hook | Acme's owner replaces the mandate with $25 → limit tightened → desk collects **$17.40** (= $18.00 − $0.60 credit) for the three orders in one pull; re-read after the pull: $17.40 of $25.00 spent, limit $7.60 | replace `0x071bf088d032ea1c70dcf07c2e120f3f287aedc8d5e2299fa68124e7c8f17989`, collect `0x5652f02f107b614e26d34ce2e9b81dbfc5aab020d159eb51514f6bc81a31ac0f` |
-| 6. Settle | Deposit $17.40 (simulated off-ramp, reference = the Metal tx), keep $0.87 refund reserve, quote and convert 16.53 USD → **21.03 SGD** | deposit `62adfc21-f62d-4c3b-9e77-4c702eeade16` (status PENDING when re-read), quote `76c1a655-671c-388d-b0a6-2c66b34a7afc`, conversion `95313a81-800f-4546-93a6-901ac643faa9` **SETTLED** |
+| 2. Terms | **T:0**: Acme is mapped to T:0 sandbox customer "Zephyr Metrics AB" (`t0_customer_prod_e9882b26f7979f04d28e`): 3 of 3 invoices paid on time → net-30. Acme's owner binds a $90 debit mandate → limit $90.00. Three agent orders ($6, $7, $5) go on the tab | bind `0xe2b224aaa31191f46f4bce6baf13bce3fe3bc287ca173b44f8779754db41c783` |
+| 3. Books | Globex (`0xF6282AAD66B0dD563c714aad5E1D24019C1598C5`) binds a $30 mandate; stand-in books show INV-2002 22 days overdue and no VIC payment yet → **prepay**; its $40 order is routed to VIC prepay | bind `0x58ab291fe8eeffd6872634ca3edf4e0bc564f85dda31f2708fceea35d7fca866` |
+| 4. Dispute | "Never agreed to 4 cents", "all 150 rows stale". Model extracts claims; code upholds the price claims with order proof and credits only the 15 QA-flagged rows: **$0.60** | read by `claude-opus-5-5` |
+| 5. Hook | Acme's owner replaces the mandate with $25 → limit tightened → desk collects **$17.40** (= $18.00 − $0.60 credit) in one pull; re-read after the pull: $17.40 of $25.00 spent, limit $7.60 | replace `0xfe57e124331fb74dd62e08fc7850838141a42c7289ca53e812753a8b84eca37c`, collect `0x165bb661bd94c1d331b602cb2388d6aa278141f718f4d140ecbac5fcfb959554` |
+| 6. Settle + book | Deposit $17.40 (reference = the Metal tx), keep $0.87 refund reserve, convert 16.53 USD → **21.00 SGD**; then **booked in T:0 as JE-2**: debit 11410 Payment Processor #1 (Airwallex cash), credit 12100 A/R - Customers (Zephyr Metrics AB), 1,740 atoms each, idempotency key = the Metal tx | deposit `2402df91-c477-492e-a8c6-1641d9e64a74`, conversion `69f3f382-981b-4288-85fe-98ecd7742960` **SETTLED**, T:0 journal entry `je_prod_DQKwtZPFxcNF5Zry` |
 
-All four Metal transactions above returned receipt status `0x1` when re-checked. An earlier run the same day (`dmw9ibrgu`) produced the same outcomes with conversion `e4f256ea-0f45-43bd-85dd-b5cbf7b9dc4b` (SETTLED); its log showed duplicate decision lines and a pre-pull snapshot on the buyer card, both fixed before this run.
+Re-checked after the run: all four Metal transactions returned receipt status `0x1`; the conversion read back SETTLED; the T:0 journal entry read back as JE-2, USD, 1,740 debit / 1,740 credit, credit line counterparty = the mapped customer. (The GL accounts above are the ones sent in the request; the read-back check did not compare account ids.)
+
+T:0 notes: a repeat post with the same idempotency key returns `409 CAPI34 … it created je_… Nothing was written again`, which `bookCollection` treats as already booked. Before this run a 1-cent balanced connectivity test entry was posted (`je_prod_Qay4ZSSkkjWNSAiq`, JE-1, memo "TAB connectivity test").
+
+Earlier runs on 2026-11-09 (`dmw9ibrgu`, `dmw9igrle`) used stand-in books for both buyers; their ids are in git history.

@@ -113,9 +113,9 @@ const REASON = {
 function renderBuyers(buyers) {
   const el = document.getElementById("buyers");
   if (!buyers.length) { el.innerHTML = '<div class="empty">No buyers yet.</div>'; return; }
-  const src = buyers.find((b) => b.booksSource)?.booksSource;
+  const srcs = new Set(buyers.map((b) => b.booksSource).filter(Boolean));
   const rail = document.getElementById("booksRail");
-  if (src === "t0") { rail.classList.remove("off"); rail.innerHTML = "<i></i>Books: T:0"; }
+  if (srcs.has("t0")) { rail.classList.remove("off"); rail.innerHTML = srcs.has("standin") ? "<i></i>Books: T:0 + labelled stand-in" : "<i></i>Books: T:0"; }
   el.innerHTML = buyers.map((b) => {
     const used = b.limit > 0 ? Math.min(100, (Math.max(0, b.outstanding) / b.limit) * 100) : 0;
     const m = b.mandate;
@@ -141,7 +141,7 @@ function eventRow(e, fresh) {
   const d = e.data || {};
   const chainTx = d.tx || d.metalTx;
   const tx = chainTx ? `<br><a href="${EXPLORER}${esc(chainTx)}" target="_blank" rel="noopener">Metal tx ${esc(short(chainTx))} ↗</a>` : "";
-  const awx = [d.paymentIntentId && `payment ${d.paymentIntentId}`, d.depositId && `deposit ${short(d.depositId)}`, d.conversionId && `conversion ${short(d.conversionId)}`, d.model && `read by ${d.model}`].filter(Boolean);
+  const awx = [d.paymentIntentId && `payment ${d.paymentIntentId}`, d.depositId && `deposit ${short(d.depositId)}`, d.conversionId && `conversion ${short(d.conversionId)}`, d.journalEntryId && `T:0 journal ${d.journalEntryId}`, d.model && `read by ${d.model}`].filter(Boolean);
   const ids = awx.length ? `<div class="ids">${esc(awx.join(" · "))}</div>` : "";
   const label = { vic: "Visa VIC", collect_refused: "refused", settle: "Airwallex" }[e.type] ?? e.type.replace("_", " ");
   return `<li class="ev${fresh ? " new" : ""}"><time>${t}</time><span class="pill p-${esc(e.type)}">${esc(label)}</span><div class="sum">${esc(e.summary)}${tx}${ids}</div></li>`;
