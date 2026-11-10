@@ -91,3 +91,20 @@ describe("the card authorisation is the guarantee", () => {
     expect(bad.find((c) => c.name === "card capture int_3")!.ok).toBe(false);
   });
 });
+
+describe("decision log never goes stale", () => {
+  it("logs a new decision when only the reasons change (mandate bound, still prepay)", async () => {
+    const { desk, state } = setup();
+    delete state.buyers.globex!.credential;
+    await desk.evaluate("globex");
+    state.buyers.globex!.credential = "c";
+    await desk.evaluate("globex");
+    const decisions = state.events.filter((e) => e.type === "decision");
+    expect(decisions.map((e) => e.summary)).toEqual(["PREPAY · limit $0.00 · available $0.00", "PREPAY · limit $0.00 · available $0.00"]);
+    const codes = (e: (typeof decisions)[number]) => ((e.data as any).decision.reasons as { code: string }[]).map((r) => r.code);
+    expect(codes(decisions[0]!)).toContain("NO_MANDATE");
+    expect(codes(decisions[1]!)).not.toContain("NO_MANDATE");
+    await desk.evaluate("globex"); // nothing changed: nothing new logged
+    expect(state.events.filter((e) => e.type === "decision")).toHaveLength(2);
+  });
+});

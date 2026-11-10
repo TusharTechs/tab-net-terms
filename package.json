@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "smoke:airwallex": "tsx scripts/smoke-airwallex.ts",
-    "screen": "tsx src/server/server.ts"
+    "screen": "tsx src/server/server.ts",
+    "replay": "tsx scripts/build-replay.ts"
   },
   "dependencies": {
     "@airwallex/airi-cli": "^0.1.0-beta.4",

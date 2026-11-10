@@ -20,7 +20,7 @@ The rules that never move: no credit before a Visa-verified payment; a tighter l
 
 ## The demo (one live run, every id real)
 
-`LIVE_VIC=1 npx tsx scripts/demo-run.ts` plays the story; `npm run screen` shows it live. Full ids and the after-run re-checks: [`proofs/demo-run.md`](proofs/demo-run.md) (run `rmwalbcax`, 19/19 checks).
+`LIVE_VIC=1 npx tsx scripts/demo-run.ts` plays the story; `npm run screen` shows it live. **No keys needed to look:** [`docs/index.html`](docs/index.html) replays the verified run event by event (play, step, jump to a scene), with every Metal transaction linked to the public testnet explorer; rebuild it from a new run with `npm run replay -- <deskFile> <logFile>`. Full ids and the after-run re-checks: [`proofs/demo-run.md`](proofs/demo-run.md) (run `rmwalbcax`, 19/19 checks).
 
 1. **Acme earns terms.** Its earlier Visa payment is re-read from Airwallex; T:0 shows 3/3 invoices paid on time → net-30; its human binds a $400 line on Metal.
 2. **The CFO types goals.** "Offer 3% off for paying within 10 days… no single buyer above $350… give our best customers net-90." Claude compiles two changes and flags net-90 as not expressible; code checks every change against hard rails, dry-runs each buyer, and applies only the policy signed with Northwind's key (a copy edited after signing is refused).

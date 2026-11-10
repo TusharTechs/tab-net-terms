@@ -191,7 +191,10 @@ export class Desk {
     const decision = evaluateCredit(input, this.deps.now(), this.creditPolicy(), b.previous);
     const summary = `${decision.terms} · limit ${usd(decision.limit)} · available ${usd(decision.available)}`;
     const lastDecision = [...this.state.events].reverse().find((e) => e.buyerId === b.id && e.type === "decision");
-    const unchanged = lastDecision?.summary === summary && decision.collectNow === 0 && decision.escalate === 0;
+    // Log again whenever the reasons change (e.g. a mandate was bound but terms are still prepay), so the screen never shows stale reasons.
+    const reasonsKey = (r: { code: string; detail: string }[]) => r.map((x) => `${x.code}:${x.detail}`).join("|");
+    const lastReasons = (lastDecision?.data as { decision?: { reasons?: { code: string; detail: string }[] } } | undefined)?.decision?.reasons ?? [];
+    const unchanged = lastDecision?.summary === summary && reasonsKey(lastReasons) === reasonsKey(decision.reasons) && decision.collectNow === 0 && decision.escalate === 0;
     if (!unchanged) this.emit(b.id, "decision", summary, {
       decision,
       inputs: { mandate: mandate && { id: mandate.mandateId, budget: mandate.budget, spent: mandate.spent, revoked: mandate.revoked }, balance, booksSource: this.deps.books.sourceFor?.(b.id) ?? this.deps.books.source, invoices: invoices.length },
