@@ -1,3 +1,4 @@
+import { config } from "../config.js";
 import { readFileSync } from "node:fs";
 import type { InvoiceRecord } from "../domain/credit.js";
 
@@ -163,11 +164,12 @@ export class StandinBooks implements Books {
 export class T0Mcp {
   constructor(
     private readonly apiKey: string,
-    private readonly url = "",
+    private readonly url: string = config().T0_MCP_URL ?? "",
   ) {}
 
   /** Retries only T:0's "another write is in progress" (409 CAPI02) and 429/5xx; every other error passes through. */
   async call<T = unknown>(tool: string, args: Record<string, unknown> = {}, attempts = 4): Promise<T> {
+    if (!this.url) throw new Error("T0_MCP_URL missing: set it in .env to the T:0 MCP endpoint issued with your key");
     for (let i = 1; ; i++) {
       try {
         return await this.callOnce<T>(tool, args);

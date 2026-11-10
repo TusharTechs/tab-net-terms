@@ -66,12 +66,12 @@ describe("T0Mcp retries", () => {
     const { T0Mcp } = await import("../src/books/books.js");
     vi.useFakeTimers({ toFake: ["setTimeout"] });
     const f = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(reply(409, "CAPI02")).mockResolvedValueOnce(reply(200, ""));
-    const p = new T0Mcp("k").call("list_invoices");
+    const p = new T0Mcp("k", "https://t0.example/mcp").call("list_invoices");
     await vi.runAllTimersAsync();
     await expect(p).resolves.toEqual({ ok: true });
     expect(f).toHaveBeenCalledTimes(2);
     f.mockReset().mockResolvedValueOnce(reply(409, "CAPI34"));
-    await expect(new T0Mcp("k").call("post_a_manual_journal_entry")).rejects.toThrow(/CAPI34/);
+    await expect(new T0Mcp("k", "https://t0.example/mcp").call("post_a_manual_journal_entry")).rejects.toThrow(/CAPI34/);
     expect(f).toHaveBeenCalledTimes(1);
     f.mockRestore();
     vi.useRealTimers();
