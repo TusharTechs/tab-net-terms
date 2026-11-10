@@ -108,3 +108,20 @@ describe("decision log never goes stale", () => {
     expect(state.events.filter((e) => e.type === "decision")).toHaveLength(2);
   });
 });
+
+describe("a Visa payment earns terms once, for one buyer", () => {
+  it("the same payment intent cannot count for a second buyer", async () => {
+    const { desk, state, pis } = setup();
+    state.buyers.acme = { id: "acme", name: "Acme", account: "0xA", vicSettledCount: 0, orders: [] };
+    pis.set("int_s", { status: "SUCCEEDED", amount: 60, captured_amount: 60, merchant_order_id: "S", metadata: { statement_hash: "h" } });
+    const p = { paymentIntentId: "int_s", airiMandateId: "m", statementId: "S", statementHash: "h" };
+    expect(await desk.verifyVicPayment("globex", p)).toBe(true);
+    expect(await desk.verifyVicPayment("acme", p)).toBe(false);
+    expect(state.buyers.acme!.vicSettledCount).toBe(0);
+  });
+  it("a payment made for another buyer is refused", async () => {
+    const { desk, pis } = setup();
+    pis.set("int_t", { status: "SUCCEEDED", amount: 60, captured_amount: 60, merchant_order_id: "T", metadata: { statement_hash: "h", buyer_id: "acme" } });
+    expect(await desk.verifyVicPayment("globex", { paymentIntentId: "int_t", airiMandateId: "m", statementId: "T", statementHash: "h" })).toBe(false);
+  });
+});

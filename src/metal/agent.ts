@@ -185,7 +185,7 @@ export class MetalAgent {
   }
 }
 
-const USDZ = "0x000000000000000000000000000000000000B5d5";
+export const USDZ = "0x000000000000000000000000000000000000B5d5";
 
 /** USDZ balance of an address via eth_call balanceOf. 18 decimals → whole cents (rounded down). */
 export async function usdzBalance(rpcUrl: string, address: string, fetchImpl: typeof fetch = fetch): Promise<Cents> {
@@ -198,4 +198,33 @@ export async function usdzBalance(rpcUrl: string, address: string, fetchImpl: ty
   const json = (await res.json()) as { result?: string; error?: { message: string } };
   if (!json.result) throw new Error(`balanceOf failed: ${json.error?.message ?? res.status}`);
   return Number(BigInt(json.result) / 10n ** 16n);
+}
+
+const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+
+/**
+ * Finds a USDZ transfer of exactly `amount` from `from` to `to` in the last `lookback` blocks, by its
+ * Transfer log. Used to reconcile a pull whose outcome was lost (crash, timeout) before re-sending it.
+ */
+export async function findTransfer(rpcUrl: string, p: { from: string; to: string; amount: Cents; lookback?: number }, fetchImpl: typeof fetch = fetch): Promise<string | null> {
+  const call = async <T>(method: string, params: unknown[]): Promise<T> => {
+    const res = await fetchImpl(rpcUrl, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }) });
+    const json = (await res.json()) as { result?: T; error?: { message: string } };
+    if (json.error || json.result === undefined) throw new Error(`${method} failed: ${json.error?.message ?? res.status}`);
+    return json.result;
+  };
+  const pad = (a: string) => `0x${a.toLowerCase().replace(/^0x/, "").padStart(64, "0")}`;
+  const latest = Number(BigInt(await call<string>("eth_blockNumber", [])));
+  const fromBlock = Math.max(0, latest - Math.min(p.lookback ?? 90_000, 99_000)); // the RPC caps one query at 100,000 blocks (~100 min on testnet)
+  const logs = await call<{ transactionHash: string; data: string }[]>("eth_getLogs", [{ address: USDZ, fromBlock: `0x${fromBlock.toString(16)}`, toBlock: "latest", topics: [TRANSFER_TOPIC, pad(p.from), pad(p.to)] }]);
+  const want = BigInt(p.amount) * 10n ** 16n;
+  const hit = logs.filter((l) => BigInt(l.data.slice(0, 66)) === want).at(-1);
+  return hit?.transactionHash ?? null;
+}
+
+/** A transaction receipt (status, sender, logs), for the proof's live checks. */
+export async function txReceipt(rpcUrl: string, tx: string, fetchImpl: typeof fetch = fetch): Promise<{ status: string; from: string; logs: { address: string; topics: string[]; data: string }[] } | null> {
+  const res = await fetchImpl(rpcUrl, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_getTransactionReceipt", params: [tx] }) });
+  const json = (await res.json()) as { result?: { status: string; from: string; logs: { address: string; topics: string[]; data: string }[] } | null };
+  return json.result ?? null;
 }

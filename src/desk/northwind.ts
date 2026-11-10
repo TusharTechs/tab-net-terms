@@ -7,6 +7,8 @@ export const NORTHWIND = {
   supplier: "0x6C7578104c945e6A0b21eD9f022abE197a40B6B4",
   supplierWalletKey: "keys/supplier-wallet.json",
   issuer: { key: "keys/supplier-issuer.json", pub: "keys/supplier-issuer.public.json" },
+  /** The CFO's policy-signing key: separate from the Metal issuer key. */
+  cfoPolicyKey: { key: "keys/cfo-policy.json", pub: "keys/cfo-policy.public.json" },
   usdGlobalAccount: "7d7f991a-1360-4b31-9437-fa2167a9ab96",
 } as const;
 

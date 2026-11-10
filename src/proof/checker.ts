@@ -19,6 +19,8 @@ const usd = (c: Cents) => `$${(c / 100).toFixed(2)}`;
 export function checkBooks(state: DeskState): Check[] {
   const out: Check[] = [];
   for (const b of Object.values(state.buyers)) {
+    // A buyer that never ordered has nothing to prove; listing it would only pad the count.
+    if (b.orders.length === 0) continue;
     const tab = b.orders.filter((o) => o.route === "ON_TAB");
     // Count each collection once, keyed by its chain tx (or payment-id for credit-only settlements).
     // A pull that answered "pending" and later resolved appears once, as "already paid earlier".
@@ -68,6 +70,21 @@ export function checkBooks(state: DeskState): Check[] {
       out.push({ name: `${b.id}: card captures = owed after credits, within the authorisation`, ok: bad.length === 0, detail: bad.length ? `mismatch on ${bad.join(", ")}` : `${usd(captured)} captured of ${usd(authorised)} authorised on ${card.length} order(s)`, ...(bad.length ? { ids: bad } : {}) });
     }
 
+    // Credits for stale units are priced at what the buyer was charged per unit, never at list, never above the order.
+    const mispriced: string[] = [];
+    for (const e of state.events) {
+      if (e.buyerId !== b.id || e.type !== "credit") continue;
+      const o = b.orders.find((x) => x.id === e.data.orderId);
+      const amt = Number(e.data.amount ?? 0);
+      if (!o || amt > o.amount) { mispriced.push(String(e.data.orderId)); continue; }
+      const n = e.data.staleUnits as number | undefined;
+      if (n !== undefined && o.units && amt !== Math.round((n * o.amount) / o.units)) mispriced.push(`${o.id} (${n} unit(s): ${usd(amt)} credited, ${usd(Math.round((n * o.amount) / o.units))} charged)`);
+    }
+    const credits = state.events.filter((e) => e.buyerId === b.id && e.type === "credit");
+    const perUnit = credits.filter((e) => e.data.staleUnits !== undefined).length;
+    const detail = `${perUnit} re-priced at the charged unit price${credits.length > perUnit ? `, ${credits.length - perUnit} checked only against the order total (no unit count recorded)` : ""}`;
+    if (credits.length) out.push({ name: `${b.id}: credits priced at what was charged`, ok: mispriced.length === 0, detail: mispriced.length ? `mispriced: ${mispriced.join("; ")}` : detail, ...(mispriced.length ? { ids: mispriced } : {}) });
+
     // Statement refusals are evidence: each recorded one carries its chain tx.
     for (const st of b.statements ?? []) {
       const missing = st.refusals.filter((r) => !r.tx).length;
@@ -77,8 +94,19 @@ export function checkBooks(state: DeskState): Check[] {
   return out;
 }
 
+export interface Receipt {
+  status: string;
+  from: string;
+  logs: { address: string; topics: string[]; data: string }[];
+}
+
 export interface LiveDeps {
   receiptStatus(tx: string): Promise<string | null>;
+  /** Full receipts: lets the check confirm the amount and both parties of every collection, and who recorded each refusal. */
+  receipt?(tx: string): Promise<Receipt | null>;
+  /** The supplier's wallet (payee of every collection, sender of every recorded refusal) and the USDZ token. */
+  supplier?: string;
+  token?: string;
   conversionStatus?(id: string): Promise<string>;
   journalEntry?(id: string): Promise<{ total_debit_atoms: number; total_credit_atoms: number } | null>;
   /** Airwallex payment intent: amount captured, in dollars. */
@@ -92,6 +120,38 @@ export async function checkLive(state: DeskState, deps: LiveDeps): Promise<Check
   const bad: string[] = [];
   for (const tx of txs) if ((await deps.receiptStatus(tx)) !== "0x1") bad.push(tx);
   out.push({ name: "every collection succeeded on chain", ok: bad.length === 0, detail: `${txs.length - bad.length}/${txs.length} receipts status 0x1`, ids: txs });
+
+  if (deps.receipt && deps.supplier) {
+    const TRANSFER = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+    const norm = (a: string) => a.toLowerCase().replace(/^0x/, "").slice(-40).padStart(40, "0");
+    const addr = (topic: string) => norm(topic);
+    const supplier = norm(deps.supplier);
+    // One check per collection tx: a Transfer of exactly the collected amount, from the buyer to the supplier.
+    const seen = new Set<string>();
+    const wrong: string[] = [];
+    for (const e of state.events.filter((x) => x.type === "collect" && x.data.tx)) {
+      const tx = String(e.data.tx);
+      if (seen.has(tx)) continue;
+      seen.add(tx);
+      const buyer = norm(state.buyers[e.buyerId]?.account ?? "");
+      const want = BigInt(Number(e.data.amount ?? 0)) * 10n ** 16n;
+      const r = await deps.receipt(tx);
+      const hit = r?.logs.some((l) => l.topics[0] === TRANSFER && (!deps.token || l.address.toLowerCase() === deps.token.toLowerCase()) && addr(l.topics[1] ?? "") === buyer && addr(l.topics[2] ?? "") === supplier && BigInt(l.data.slice(0, 66)) === want);
+      if (!hit) wrong.push(tx);
+    }
+    out.push({ name: "every collection moved exactly its amount from the buyer to Northwind", ok: wrong.length === 0, detail: wrong.length ? `no matching transfer in ${wrong.join(", ")}` : `${seen.size}/${seen.size} transfer logs match amount, buyer and payee`, ids: [...seen] });
+
+    // Recorded refusals: real transactions, sent by the supplier.
+    const refusals = [...new Set(state.events.filter((x) => x.type === "refused" && x.data.tx).map((x) => String(x.data.tx)))];
+    if (refusals.length) {
+      const badR: string[] = [];
+      for (const tx of refusals) {
+        const r = await deps.receipt(tx);
+        if (!r || r.status !== "0x1" || norm(r.from) !== supplier) badR.push(tx);
+      }
+      out.push({ name: "every refusal is recorded on chain by Northwind", ok: badR.length === 0, detail: `${refusals.length - badR.length}/${refusals.length} refusal txs succeeded, sent by the supplier`, ids: refusals });
+    }
+  }
 
   for (const e of state.events.filter((x) => x.type === "settle" && x.data.conversionId)) {
     const tx = String(e.data.metalTx ?? "");

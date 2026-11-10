@@ -64,7 +64,7 @@ export function discountYield(discount: number, earlyDays: number, netDays: numb
   return (discount / (1 - discount)) * (365 / (netDays - earlyDays));
 }
 
-export function quote(productId: string, units: number, decision: CreditDecision, terms: SalesTerms = DEFAULT_TERMS): Offer {
+export function quote(productId: string, units: number, decision: CreditDecision, terms: SalesTerms = DEFAULT_TERMS, exposure: { cardOpen: Cents } = { cardOpen: 0 }): Offer {
   const early = terms.earlyPay;
   const p = CATALOG.find((x) => x.id === productId);
   if (!p) throw new Error(`unknown product ${productId}`);
@@ -84,7 +84,11 @@ export function quote(productId: string, units: number, decision: CreditDecision
     // The on-ramp: a buyer with no Metal terms yet (and nothing overdue) can still pay later, because
     // a passkey-approved Visa authorisation secures the tab. Only the undisputed amount is captured.
     const overdue = decision.reasons.some((r) => r.code === "OVERDUE_INVOICE");
-    if (listAmount <= VIC_MAX_PER_TXN && !overdue) {
+    // All of a buyer's open card-secured tabs together must fit one card authorisation.
+    if (exposure.cardOpen + listAmount > VIC_MAX_PER_TXN && listAmount <= VIC_MAX_PER_TXN && !overdue) {
+      notes.push(`no card-secured tab: you already have $${(exposure.cardOpen / 100).toFixed(2)} on one, and together they must fit a single $200 authorisation`);
+    }
+    if (exposure.cardOpen + listAmount <= VIC_MAX_PER_TXN && !overdue) {
       options.push({ option: "card_net_7", amount: listAmount, dueInDays: CARD_TAB_DAYS, discount: 0, description: `On a ${CARD_TAB_DAYS}-day tab secured now by a Visa authorisation (passkey-approved); at the due date only the undisputed amount is captured` });
     }
   } else if (listAmount > decision.available) {

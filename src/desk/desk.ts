@@ -6,7 +6,7 @@ import { type CreditDecision, type CreditPolicy, DEFAULT_POLICY, evaluateCredit,
 import type { Cents } from "../domain/money.js";
 import type { DisputeDecision, OrderEvidence } from "../disputes/decide.js";
 import type { MandateStatus, PullOutcome } from "../metal/agent.js";
-import { type DeskPolicy, policyHash, type SignedPolicy } from "../policy/policy.js";
+import { type DeskPolicy, policyHash, type SignedPolicy, verifyPolicy } from "../policy/policy.js";
 import { CATALOG, DEFAULT_TERMS, type PaymentOption, quote, type SalesTerms } from "../terms/offers.js";
 
 /**
@@ -63,7 +63,13 @@ export interface Buyer {
    * died mid-call). It is resolved by re-sending the SAME pull (same payment-id, amount and original
    * credential), which Metal pays at most once, before any new batch is built.
    */
-  inflight?: { paymentId: string; orderIds: string[]; amount: Cents; creditApplied: Cents; credential: string; mandateKeyFile: string };
+  inflight?: {
+    paymentId: string; orderIds: string[]; amount: Cents; creditApplied: Cents; credential: string; mandateKeyFile: string;
+    /** The mandate's spent total just before the first send: if it has since risen by `amount`, the pull went through. */
+    spentBefore?: Cents;
+    /** The tx Metal reported for a pending pull, if any. */
+    tx?: string;
+  };
   /** Statements issued as their own Metal mandates (the statement IS the mandate). */
   statements?: Statement[];
   /** Airwallex payment intents already counted toward terms (each counts once). */
@@ -89,6 +95,8 @@ export interface Statement {
   acceptTx: string;
   status: "accepted" | "collected" | "unpaid";
   collectedTx?: string;
+  /** Credits issued on its orders after it was bound: its mandate still collects the bound total, so they are owed back. */
+  creditCarried?: Cents;
   refusals: { reason: string; tx?: string; at: string }[];
 }
 
@@ -130,9 +138,13 @@ export interface DeskDeps {
   balanceOf(address: string): Promise<Cents>;
   books: Books;
   now(): Date;
+  /** Finds a USDZ transfer from the buyer to the supplier of exactly `amount` on chain (recent blocks). */
+  findTransfer?(p: { from: string; to: string; amount: Cents }): Promise<string | null>;
   /** Reads a payment intent from Airwallex, so the VIC gate verifies rather than trusts. */
   readPaymentIntent?(id: string): Promise<{ status: string; amount?: number; captured_amount?: number; merchant_order_id?: string; metadata?: Record<string, string> }>;
   policy?: CreditPolicy;
+  /** Public key file of the CFO's policy key: the desk applies (and keeps using) only policies that verify under it. */
+  policyPublicKey?: string;
   persist?(state: DeskState): void;
 }
 
@@ -141,6 +153,20 @@ const openOrders = (b: Buyer) => b.orders.filter((o) => o.route === "ON_TAB" && 
 /** Orders an accepted statement will collect: the credit-line mandate must not pull them too. */
 const onAcceptedStatement = (b: Buyer) => new Set((b.statements ?? []).filter((st) => st.status === "accepted").flatMap((st) => st.orderIds));
 const lineCollectable = (b: Buyer) => { const covered = onAcceptedStatement(b); return openOrders(b).filter((o) => !covered.has(o.id)); };
+/** Whole orders, oldest first, until at least `amount` (net of credit) is covered, never past `max`. */
+function pickBatch(b: Buyer, amount: Cents, max: Cents): { batch: Order[]; gross: Cents; applied: Cents; net: Cents } {
+  const credit = b.creditBalance ?? 0;
+  const batch: Order[] = [];
+  let gross = 0;
+  for (const o of lineCollectable(b)) {
+    if (gross - credit >= amount) break;
+    if (gross + dueOn(o) - credit > max) break;
+    batch.push(o);
+    gross += dueOn(o);
+  }
+  const applied = Math.min(credit, gross);
+  return { batch, gross, applied, net: gross - applied };
+}
 const outstandingOf = (b: Buyer) => Math.max(0, openOrders(b).reduce((s, o) => s + dueOn(o), 0) - (b.creditBalance ?? 0));
 
 /** Payment-id for a collection: hash of exactly which orders (and amounts) it pays for, and any credit netted off. */
@@ -150,10 +176,26 @@ export function batchPaymentId(buyerId: string, orders: Pick<Order, "id" | "amou
 }
 
 export class Desk {
+  /** The stored policy, only if it verified when the desk loaded it (or when it was applied). */
+  private trustedPolicy: SignedPolicy | undefined;
+
   constructor(
     readonly state: DeskState,
     private readonly deps: DeskDeps,
-  ) {}
+  ) {
+    if (state.policy) {
+      if (this.verifies(state.policy)) this.trustedPolicy = state.policy;
+      else this.emit("desk", "refused", `stored policy ${state.policy.hash.slice(0, 12)}… does not verify under the CFO's key: using the default policy`, { hash: state.policy.hash });
+    }
+  }
+
+  private verifies(s: SignedPolicy): boolean {
+    try {
+      return Boolean(this.deps.policyPublicKey) && verifyPolicy(s, this.deps.policyPublicKey!);
+    } catch {
+      return false;
+    }
+  }
 
   private emit(buyerId: string, type: DeskEvent["type"], summary: string, data: Record<string, unknown> = {}) {
     this.state.events.push({ seq: this.state.events.length + 1, at: this.deps.now().toISOString(), buyerId, type, summary, data });
@@ -170,13 +212,18 @@ export class Desk {
    * Re-reads mandate, balance and books, decides, and collects if the decision says so.
    * After a collection it re-reads once, so the log (and the screen) shows the state after the pull.
    */
+  /** Which buyer (if any) a Visa payment has already counted for. A payment earns terms once, for one buyer. */
+  private vicCountedFor(paymentIntentId: string): string | undefined {
+    return Object.values(this.state.buyers).find((x) => (x.vicPaymentIds ?? []).includes(paymentIntentId))?.id;
+  }
+
   /** The credit policy in force: the CFO's signed policy, else the configured default. */
   creditPolicy(): CreditPolicy {
-    return this.state.policy?.policy.credit ?? this.deps.policy ?? DEFAULT_POLICY;
+    return this.trustedPolicy?.policy.credit ?? this.deps.policy ?? DEFAULT_POLICY;
   }
 
   salesTerms(): SalesTerms {
-    return this.state.policy?.policy.terms ?? DEFAULT_TERMS;
+    return this.trustedPolicy?.policy.terms ?? DEFAULT_TERMS;
   }
 
   private async inputsFor(b: Buyer) {
@@ -187,6 +234,8 @@ export class Desk {
 
   async evaluate(buyerId: string, afterCollect = false): Promise<CreditDecision> {
     const b = this.buyer(buyerId);
+    // A pull still in flight is settled first, every time: from the chain if it landed, else re-sent as the same pull.
+    if (b.inflight && !afterCollect) await this.resolveInflight(b);
     const { mandate, balance, invoices, input } = await this.inputsFor(b);
     const decision = evaluateCredit(input, this.deps.now(), this.creditPolicy(), b.previous);
     const summary = `${decision.terms} · limit ${usd(decision.limit)} · available ${usd(decision.available)}`;
@@ -199,10 +248,10 @@ export class Desk {
       decision,
       inputs: { mandate: mandate && { id: mandate.mandateId, budget: mandate.budget, spent: mandate.spent, revoked: mandate.revoked }, balance, booksSource: this.deps.books.sourceFor?.(b.id) ?? this.deps.books.source, invoices: invoices.length },
     });
-    b.previous = { terms: decision.terms, limit: decision.limit };
+    b.previous = { terms: decision.terms, limit: decision.limit, ...(mandate ? { budget: mandate.budget } : {}) };
 
     let collected = false;
-    if (decision.collectNow > 0 && b.credential && b.mandateKeyFile) collected = await this.collect(b, decision.collectNow);
+    if (decision.collectNow > 0 && b.credential && b.mandateKeyFile) collected = await this.collect(b, decision.collectNow, decision.collectMax ?? decision.collectNow);
     if (decision.escalate > 0) this.emit(b.id, "escalate", `${usd(decision.escalate)} cannot be pulled from the mandate; sent to a person`, { amount: decision.escalate });
     this.deps.persist?.(this.state);
     if (collected && !afterCollect) return this.evaluate(buyerId, true);
@@ -210,22 +259,15 @@ export class Desk {
   }
 
   /**
-   * Collects `amount` (net of any credit owed to the buyer) against the oldest open orders.
-   * The payment-id names exactly those orders and the credit applied.
+   * Collects at least `amount` (net of any credit owed to the buyer) in whole orders, oldest first,
+   * never pulling more than `max` (mandate headroom and balance). The payment-id names exactly those
+   * orders and the credit applied.
    */
-  private async collect(b: Buyer, amount: Cents): Promise<boolean> {
+  private async collect(b: Buyer, amount: Cents, max: Cents = amount): Promise<boolean> {
     if (b.inflight) return this.resolveInflight(b);
     const credit = b.creditBalance ?? 0;
-    const batch: Order[] = [];
-    let gross = 0;
-    for (const o of lineCollectable(b)) {
-      if (gross + dueOn(o) > amount + credit) break;
-      batch.push(o);
-      gross += dueOn(o);
-    }
+    const { batch, applied, net } = pickBatch(b, amount, max);
     if (batch.length === 0) return false;
-    const applied = Math.min(credit, gross);
-    const net = gross - applied;
     const paymentId = batchPaymentId(b.id, batch.map((o) => ({ id: o.id, amount: dueOn(o) })), applied);
 
     if (net === 0) {
@@ -234,8 +276,10 @@ export class Desk {
       this.emit(b.id, "collect", `${batch.length} order(s) settled entirely from credit (${usd(applied)})`, { paymentId, orders: batch.map((o) => o.id), amount: 0, creditApplied: applied });
       return true;
     }
-    // Record the pull BEFORE sending it, so a crash or a pending answer can only ever be retried as this same pull.
-    b.inflight = { paymentId, orderIds: batch.map((o) => o.id), amount: net, creditApplied: applied, credential: b.credential!, mandateKeyFile: b.mandateKeyFile! };
+    // Record the pull BEFORE sending it, with the mandate's spent total, so a crash or a pending answer can only
+    // ever be reconciled from the chain or retried as this same pull.
+    const spentBefore = (await this.deps.metal.status(b.credential!)).spent;
+    b.inflight = { paymentId, orderIds: batch.map((o) => o.id), amount: net, creditApplied: applied, credential: b.credential!, mandateKeyFile: b.mandateKeyFile!, spentBefore };
     this.deps.persist?.(this.state);
     return this.resolveInflight(b);
   }
@@ -243,24 +287,43 @@ export class Desk {
   /** Sends (or re-sends) the in-flight pull and applies its outcome. Paid/refused clear it; pending/held keep it. */
   private async resolveInflight(b: Buyer): Promise<boolean> {
     const p = b.inflight!;
-    const res = await this.deps.metal.pull({ credential: p.credential, mandateKeyFile: p.mandateKeyFile, to: this.deps.supplierPayee, amount: p.amount, paymentId: p.paymentId });
-    if (res.outcome === "paid") {
-      const batch = b.orders.filter((o) => p.orderIds.includes(o.id));
-      for (const o of batch) o.collectedBy = res.tx;
-      b.creditBalance = (b.creditBalance ?? 0) - p.creditApplied;
-      delete b.inflight;
-      const creditNote = p.creditApplied ? ` after ${usd(p.creditApplied)} credit` : "";
-      this.emit(b.id, "collect", `collected ${usd(p.amount)} for ${batch.length} order(s)${creditNote}${res.alreadyPaid ? " (already paid earlier)" : ""}`, { tx: res.tx, paymentId: p.paymentId, orders: p.orderIds, amount: p.amount, creditApplied: p.creditApplied });
-      return true;
+    // Before any (re-)send: if the mandate's spent total already rose by this pull, it went through (the
+    // answer was lost). Take it from the chain and never send it again.
+    if (p.spentBefore !== undefined) {
+      const now = await this.deps.metal.status(p.credential);
+      if (now.spent >= p.spentBefore + p.amount) {
+        const tx = p.tx ?? (await this.deps.findTransfer?.({ from: b.account, to: this.deps.supplierPayee, amount: p.amount })) ?? null;
+        if (!tx) {
+          this.emit(b.id, "escalate", `pull of ${usd(p.amount)} went through on the mandate (spent ${usd(p.spentBefore)} → ${usd(now.spent)}) but its tx was not found: not re-sending; a person reconciles it`, { paymentId: p.paymentId, amount: p.amount });
+          this.deps.persist?.(this.state);
+          return false;
+        }
+        return this.markInflightPaid(b, tx, "reconciled from the chain, nothing re-sent");
+      }
     }
+    const res = await this.deps.metal.pull({ credential: p.credential, mandateKeyFile: p.mandateKeyFile, to: this.deps.supplierPayee, amount: p.amount, paymentId: p.paymentId });
+    if (res.outcome === "paid") return this.markInflightPaid(b, res.tx, res.alreadyPaid ? "already paid earlier" : undefined);
     if (res.outcome === "refused") {
       delete b.inflight;
       this.emit(b.id, "collect_refused", `pull of ${usd(p.amount)} refused: ${res.reason}`, { reason: res.reason, detail: res.detail, paymentId: p.paymentId, amount: p.amount });
     } else {
-      this.emit(b.id, "collect_refused", `pull of ${usd(p.amount)} ${res.outcome}; will re-send the same pull before anything else`, { outcome: res.outcome, paymentId: p.paymentId, amount: p.amount });
+      if (res.tx) p.tx = res.tx;
+      this.emit(b.id, "collect_refused", `pull of ${usd(p.amount)} ${res.outcome}; will re-check the chain before re-sending the same pull`, { outcome: res.outcome, paymentId: p.paymentId, amount: p.amount, ...(res.tx ? { pendingTx: res.tx } : {}) });
     }
     this.deps.persist?.(this.state);
     return false;
+  }
+
+  /** The in-flight pull is known paid (by Metal's answer or from the chain): mark its orders collected. */
+  private markInflightPaid(b: Buyer, tx: string, note?: string): boolean {
+    const p = b.inflight!;
+    const batch = b.orders.filter((o) => p.orderIds.includes(o.id));
+    for (const o of batch) o.collectedBy = tx;
+    b.creditBalance = (b.creditBalance ?? 0) - p.creditApplied;
+    delete b.inflight;
+    const creditNote = p.creditApplied ? ` after ${usd(p.creditApplied)} credit` : "";
+    this.emit(b.id, "collect", `collected ${usd(p.amount)} for ${batch.length} order(s)${creditNote}${note ? ` (${note})` : ""}`, { tx, paymentId: p.paymentId, orders: p.orderIds, amount: p.amount, creditApplied: p.creditApplied });
+    return true;
   }
 
   /** An agent order arrives. It goes on the tab only if it fits; otherwise prepay (VIC ≤ $200, else invoice). */
@@ -280,7 +343,8 @@ export class Desk {
   /** What Northwind offers this buyer for this order right now (fresh credit decision, code-priced). */
   async offerFor(buyerId: string, productId: string, units: number) {
     const decision = await this.evaluate(buyerId);
-    return quote(productId, units, decision, this.salesTerms());
+    const cardOpen = this.buyer(buyerId).orders.filter((o) => o.route === "CARD_AUTH" && !o.collectedBy).reduce((s, o) => s + dueOn(o), 0);
+    return quote(productId, units, decision, this.salesTerms(), { cardOpen });
   }
 
   /**
@@ -336,7 +400,7 @@ export class Desk {
    * A credit note. On an order still on the tab it reduces what is owed; on a collected
    * order it becomes credit netted off the buyer's next collection. Never above what was charged.
    */
-  applyCredit(buyerId: string, orderId: string, amount: Cents, reason: string): Cents {
+  applyCredit(buyerId: string, orderId: string, amount: Cents, reason: string, staleUnits?: number): Cents {
     const b = this.buyer(buyerId);
     const o = b.orders.find((x) => x.id === orderId);
     if (!o) throw new Error(`unknown order ${orderId}`);
@@ -346,13 +410,16 @@ export class Desk {
     if (applied === 0) return 0;
     o.credited = (o.credited ?? 0) + applied;
     let where = "reduces what is owed on the tab";
-    // A pull already sent for this order (in flight) took the pre-credit amount, so treat it as collected.
-    const taken = Boolean(o.collectedBy) || Boolean(b.inflight?.orderIds.includes(orderId));
+    // Anything that will collect the pre-credit amount (a pull in flight, or an accepted statement whose
+    // mandate was bound for its total) makes the credit owed back: carry it to the next collection.
+    const statement = (b.statements ?? []).find((st) => st.status === "accepted" && st.orderIds.includes(orderId));
+    const taken = Boolean(o.collectedBy) || Boolean(b.inflight?.orderIds.includes(orderId)) || Boolean(statement);
     if (taken) {
       b.creditBalance = (b.creditBalance ?? 0) + applied;
-      where = "carried to the next collection";
+      if (statement) statement.creditCarried = (statement.creditCarried ?? 0) + applied;
+      where = statement ? `carried to the next collection: statement ${statement.id} was bound for its full total` : "carried to the next collection";
     }
-    this.emit(b.id, "credit", `credit note ${usd(applied)} on ${orderId}: ${reason} (${where})`, { orderId, amount: applied, reason, collected: taken });
+    this.emit(b.id, "credit", `credit note ${usd(applied)} on ${orderId}: ${reason} (${where})`, { orderId, amount: applied, reason, collected: taken, ...(staleUnits !== undefined ? { staleUnits } : {}) });
     return applied;
   }
 
@@ -363,7 +430,8 @@ export class Desk {
   draftStatement(buyerId: string, dueOnDay: string): { id: string; orderIds: string[]; total: Cents; dueAt: string; hash: string } | null {
     const b = this.buyer(buyerId);
     const day = dueOnDay.slice(0, 10);
-    const covered = new Set((b.statements ?? []).flatMap((st) => st.orderIds));
+    // Orders on any earlier statement, or in a line pull still in flight, are never drafted again.
+    const covered = new Set([...(b.statements ?? []).flatMap((st) => st.orderIds), ...(b.inflight?.orderIds ?? [])]);
     const orders = openOrders(b).filter((o) => o.dueAt?.slice(0, 10) === day && !covered.has(o.id));
     if (orders.length === 0) return null;
     const dueAt = orders.map((o) => o.dueAt!).sort().at(-1)!;
@@ -394,6 +462,13 @@ export class Desk {
     const b = this.buyer(buyerId);
     const st = (b.statements ?? []).find((x) => x.id === statementId);
     if (!st) throw new Error(`unknown statement ${statementId}`);
+    const injected = inject.amount !== undefined || inject.paymentId !== undefined;
+    // A normal collection checks the desk's own record first; only deliberate fault injection reaches the chain regardless.
+    if (!injected && st.status === "collected") {
+      this.emit(b.id, "collect", `statement ${st.id} was already collected in ${st.collectedTx?.slice(0, 10)}…: answered from the desk's record, nothing sent`, { tx: st.collectedTx, statementId: st.id, paymentId: st.hash, orders: st.orderIds, amount: st.total });
+      return { outcome: "paid", tx: st.collectedTx!, alreadyPaid: true, spent: "" };
+    }
+    if (!injected && st.status === "unpaid") throw new Error(`statement ${st.id} went unpaid; its orders are back on the credit line`);
     const res = await this.deps.metal.pull({
       credential: st.credential, mandateKeyFile: st.mandateKeyFile, to: this.deps.supplierPayee, amount: amount ?? st.total, paymentId: inject.paymentId ?? st.hash,
       ...(this.deps.refusalKey ? { recordRefusalKey: this.deps.refusalKey } : {}),
@@ -420,7 +495,10 @@ export class Desk {
     const b = this.buyer(buyerId);
     const st = (b.statements ?? []).find((x) => x.id === statementId);
     if (!st || st.status !== "accepted") return;
+    if (this.deps.now().getTime() < Date.parse(st.graceEndsAt)) throw new Error(`statement ${st.id} is still inside its window (until ${st.graceEndsAt})`);
     st.status = "unpaid";
+    // Its orders go back to the line at their credited amounts, so credit carried for them is no longer owed back.
+    if (st.creditCarried) b.creditBalance = Math.max(0, (b.creditBalance ?? 0) - st.creditCarried);
     this.emit(b.id, "escalate", `statement ${st.id} unpaid after grace: ${usd(st.total)} returns to the credit-line mandate`, { statementId: st.id });
     this.deps.persist?.(this.state);
   }
@@ -428,7 +506,7 @@ export class Desk {
   /** Records a dispute decision (made in code from the order records) and applies its credits. */
   resolveDispute(buyerId: string, decision: DisputeDecision, meta: { summary: string; model?: string }) {
     let credited = 0;
-    for (const f of decision.findings) if (f.verdict === "credit" && f.orderId) credited += this.applyCredit(buyerId, f.orderId, f.amount, f.reason);
+    for (const f of decision.findings) if (f.verdict === "credit" && f.orderId) credited += this.applyCredit(buyerId, f.orderId, f.amount, f.reason, f.units);
     const upheld = decision.findings.filter((f) => f.verdict === "upheld_for_supplier").length;
     const escalated = decision.findings.filter((f) => f.verdict === "escalate").length;
     this.emit(buyerId, "dispute", `dispute resolved: ${usd(credited)} credited, ${upheld} claim(s) declined with the order record as proof, ${escalated} to a person`, { ...meta, findings: decision.findings });
@@ -453,10 +531,11 @@ export class Desk {
       statement: pi.merchant_order_id === p.statementId,
       hash: (pi.metadata?.statement_hash ?? "") === p.statementHash,
     };
-    const already = (b.vicPaymentIds ?? []).includes(p.paymentIntentId);
-    const ok = Object.values(checks).every(Boolean) && !already;
-    if (already) {
-      this.emit(b.id, "refused", `VIC payment ${p.paymentIntentId} was already counted toward terms`, { ...p });
+    const countedFor = this.vicCountedFor(p.paymentIntentId);
+    const otherBuyer = pi.metadata?.buyer_id !== undefined && pi.metadata.buyer_id !== b.id;
+    const ok = Object.values(checks).every(Boolean) && !countedFor && !otherBuyer;
+    if (countedFor || otherBuyer) {
+      this.emit(b.id, "refused", `VIC payment ${p.paymentIntentId} cannot count for ${b.name}: ${countedFor ? `already counted toward terms for ${this.state.buyers[countedFor]?.name ?? countedFor}` : `it was made for buyer ${pi.metadata!.buyer_id}`}`, { ...p });
       return false;
     }
     if (ok) {
@@ -496,6 +575,13 @@ export class Desk {
     return true;
   }
 
+  /** What to capture on a card-secured tab at its due date: what is still owed after credits, decided here, not by the caller. */
+  cardCaptureAmount(buyerId: string, paymentIntentId: string): Cents {
+    const orders = this.buyer(buyerId).orders.filter((o) => o.card?.paymentIntentId === paymentIntentId && !o.collectedBy);
+    if (!orders.length) throw new Error(`no open card-secured orders on ${paymentIntentId}`);
+    return orders.reduce((s, o) => s + dueOn(o), 0);
+  }
+
   /**
    * At the due date the supplier captured the undisputed amount. Checked against Airwallex: the
    * capture must equal what is owed after credits, never more. A verified capture is a settled
@@ -511,7 +597,7 @@ export class Desk {
     const pi = await this.deps.readPaymentIntent(paymentIntentId);
     const captured = Math.round(Number(pi.captured_amount ?? 0) * 100);
     const checks = { succeeded: pi.status === "SUCCEEDED", capturedOwed: captured === owed };
-    if (!Object.values(checks).every(Boolean) || (b.vicPaymentIds ?? []).includes(paymentIntentId)) {
+    if (!Object.values(checks).every(Boolean) || this.vicCountedFor(paymentIntentId)) {
       this.emit(b.id, "refused", `card capture on ${paymentIntentId} did not verify: captured ${usd(captured)}, owed ${usd(owed)}, status ${pi.status}`, { paymentIntentId, checks });
       return false;
     }
@@ -533,8 +619,9 @@ export class Desk {
     for (const b of Object.values(this.state.buyers)) {
       const { input } = await this.inputsFor(b);
       const before = evaluateCredit(input, now, this.creditPolicy(), b.previous);
-      const after = evaluateCredit(input, now, proposed.credit, { terms: before.terms, limit: before.limit });
-      rows.push({ buyerId: b.id, name: b.name, before: { terms: before.terms, limit: before.limit }, after: { terms: after.terms, limit: after.limit }, outstanding: input.outstanding, wouldCollect: after.collectNow });
+      const after = evaluateCredit(input, now, proposed.credit, { terms: before.terms, limit: before.limit, ...(input.mandate ? { budget: input.mandate.budget } : {}) });
+      const wouldCollect = after.collectNow > 0 ? pickBatch(b, after.collectNow, after.collectMax ?? after.collectNow).net : 0;
+      rows.push({ buyerId: b.id, name: b.name, before: { terms: before.terms, limit: before.limit }, after: { terms: after.terms, limit: after.limit }, outstanding: input.outstanding, wouldCollect });
     }
     return rows;
   }
@@ -543,14 +630,15 @@ export class Desk {
    * Applies the CFO's policy only if its signature verifies under the supplier's key, then
    * re-evaluates every buyer under it (which may collect, exactly as the dry run showed).
    */
-  async applyPolicy(signed: SignedPolicy, verified: boolean, diff: PolicyDiffRow[]): Promise<boolean> {
-    if (!verified) {
+  async applyPolicy(signed: SignedPolicy, diff: PolicyDiffRow[]): Promise<boolean> {
+    if (!this.verifies(signed)) {
       const actual = policyHash(signed.policy);
-      const why = actual !== signed.hash ? `its content (hash ${actual.slice(0, 12)}…) is not what Northwind signed (${signed.hash.slice(0, 12)}…)` : "its signature does not verify under Northwind's key";
+      const why = !this.deps.policyPublicKey ? "no CFO policy key is configured" : `it does not verify under the CFO's key (content or signature changed after signing; signed hash ${signed.hash.slice(0, 12)}…, policy numbers now hash to ${actual.slice(0, 12)}…)`;
       this.emit("desk", "refused", `policy not applied: ${why}`, { signedHash: signed.hash, actualHash: actual });
       return false;
     }
     this.state.policy = signed;
+    this.trustedPolicy = signed;
     const changed = signed.accepted.map((c) => policyChangeText(c)).join("; ") || "no change";
     this.emit("desk", "policy", `CFO policy signed and applied: ${changed}${signed.rejected.length ? ` · rejected by code: ${signed.rejected.map((c) => `${c.field} (${c.why})`).join("; ")}` : ""}${signed.notCompiled.length ? ` · not expressible: ${signed.notCompiled.map((n) => n.goal).join("; ")}` : ""}`, { hash: signed.hash, signature: signed.signature, kid: signed.kid, goals: signed.goals, accepted: signed.accepted, rejected: signed.rejected, notCompiled: signed.notCompiled, diff, model: signed.model });
     for (const id of Object.keys(this.state.buyers)) await this.evaluate(id);

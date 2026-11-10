@@ -126,10 +126,15 @@ export function canonical(v: unknown): string {
 
 export const policyHash = (p: DeskPolicy) => `0x${createHash("sha256").update(canonical(p)).digest("hex")}`;
 
+/** What the CFO signs: the policy AND its audit trail (goals, accepted/rejected changes, what was not expressible). */
+type SignedContent = Pick<SignedPolicy, "policy" | "goals" | "summary" | "accepted" | "rejected" | "notCompiled"> & { model?: string };
+const contentHash = (s: SignedContent) =>
+  `0x${createHash("sha256").update(canonical({ policy: s.policy, goals: s.goals, summary: s.summary, accepted: s.accepted, rejected: s.rejected, notCompiled: s.notCompiled, model: s.model ?? null })).digest("hex")}`;
+
 export interface SignedPolicy {
   policy: DeskPolicy;
   hash: string;
-  /** ES256 (P-256, IEEE P1363) signature over the hash, base64url. */
+  /** sha256 of the policy and its audit trail; ES256 (P-256, IEEE P1363) signature over it, base64url. */
   signature: string;
   kid: string;
   goals: string;
@@ -141,10 +146,10 @@ export interface SignedPolicy {
   signedAt: string;
 }
 
-/** Signs with the supplier's issuer key (the same key that issues Metal credentials). */
-export function signPolicy(p: Omit<SignedPolicy, "hash" | "signature" | "kid" | "signedAt">, issuerKeyFile: string, now = new Date()): SignedPolicy {
-  const k = JSON.parse(readFileSync(issuerKeyFile, "utf8")) as { kid: string; privateJwk: Record<string, string> };
-  const hash = policyHash(p.policy);
+/** Signs with the CFO's policy key (separate from the key that issues Metal credentials). */
+export function signPolicy(p: Omit<SignedPolicy, "hash" | "signature" | "kid" | "signedAt">, signerKeyFile: string, now = new Date()): SignedPolicy {
+  const k = JSON.parse(readFileSync(signerKeyFile, "utf8")) as { kid: string; privateJwk: Record<string, string> };
+  const hash = contentHash(p);
   const signature = sign("sha256", Buffer.from(hash), { key: createPrivateKey({ key: k.privateJwk, format: "jwk" }), dsaEncoding: "ieee-p1363" }).toString("base64url");
   return { ...p, hash, signature, kid: k.kid, signedAt: now.toISOString() };
 }
@@ -152,7 +157,7 @@ export function signPolicy(p: Omit<SignedPolicy, "hash" | "signature" | "kid" | 
 /** True only if the hash matches the policy and the signature verifies under the supplier's public key. */
 export function verifyPolicy(s: SignedPolicy, publicKeyFile: string): boolean {
   const k = JSON.parse(readFileSync(publicKeyFile, "utf8")) as { kid: string; jwk: Record<string, string> };
-  if (s.kid !== k.kid || policyHash(s.policy) !== s.hash) return false;
+  if (s.kid !== k.kid || contentHash(s) !== s.hash) return false;
   return verify("sha256", Buffer.from(s.hash), { key: createPublicKey({ key: k.jwk, format: "jwk" }), dsaEncoding: "ieee-p1363" }, Buffer.from(s.signature, "base64url"));
 }
 

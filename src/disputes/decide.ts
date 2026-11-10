@@ -36,7 +36,7 @@ export interface OrderEvidence {
 
 export type Finding =
   | { claim: ClaimType; orderId: string; verdict: "upheld_for_supplier"; reason: string; proof: string }
-  | { claim: ClaimType; orderId: string; verdict: "credit"; amount: Cents; reason: string }
+  | { claim: ClaimType; orderId: string; verdict: "credit"; amount: Cents; units: number; reason: string }
   | { claim: ClaimType; orderId: string | null; verdict: "escalate"; reason: string };
 
 export interface DisputeDecision {
@@ -80,7 +80,7 @@ export function decideDispute(claims: Claim[], orders: Map<string, OrderEvidence
       const amount = Math.round(units * perUnit);
       if (amount > 0) {
         creditedHere.set(id, (creditedHere.get(id) ?? 0) + amount);
-        findings.push({ claim: c.type, orderId: id, verdict: "credit", amount, reason: `${units} stale unit(s) confirmed by delivery QA × ${centsText(perUnit)} charged per unit` });
+        findings.push({ claim: c.type, orderId: id, verdict: "credit", amount, units, reason: `${units} stale unit(s) confirmed by delivery QA × ${centsText(perUnit)} charged per unit` });
       } else {
         findings.push({ claim: c.type, orderId: id, verdict: "upheld_for_supplier", reason: o.staleUnits === 0 ? "delivery QA flagged no stale units" : "already credited", proof: o.proof });
       }

@@ -53,7 +53,7 @@ describe("evaluateCredit", () => {
       goodBuyer({ outstanding: 18_000, mandate: { payees: [SUPPLIER], budget: 25_000, spent: 0, revoked: false } }),
       NOW,
       undefined,
-      { terms: before.terms, limit: before.limit },
+      { terms: before.terms, limit: before.limit, budget: 90_000 },
     );
     expect(after.limit).toBe(25_000);
     expect(codes(after)).toEqual(expect.arrayContaining(["LIMIT_BY_MANDATE_HEADROOM", "LIMIT_TIGHTENED", "COLLECT_ALL"]));
@@ -116,7 +116,7 @@ describe("evaluateCredit", () => {
       goodBuyer({ outstanding: 30_000, mandate: { payees: [SUPPLIER], budget: 20_000, spent: 0, revoked: false } }),
       NOW,
       undefined,
-      { terms: "NET_30", limit: 90_000 },
+      { terms: "NET_30", limit: 90_000, budget: 90_000 },
     );
     expect(d.collectNow).toBe(20_000);
     expect(d.escalate).toBe(10_000);
@@ -149,5 +149,20 @@ describe("routeOrder", () => {
     const d = evaluateCredit(goodBuyer({ vicSettledCount: 0 }), NOW);
     expect(routeOrder(d, VIC_MAX_PER_TXN)).toEqual({ kind: "PREPAY_VIC" });
     expect(routeOrder(d, VIC_MAX_PER_TXN + 1)).toEqual({ kind: "PREPAY_INVOICE", reason: "OVER_VIC_CAP" });
+  });
+
+  it("a limit that drops for any other reason (a balance dip) collects only the excess, never the whole tab", () => {
+    const d = evaluateCredit(goodBuyer({ outstanding: 18_000, onchainBalance: 15_000 }), NOW, undefined, { terms: "NET_30", limit: 90_000, budget: 90_000 });
+    expect(d.limit).toBe(15_000);
+    expect(codes(d)).toEqual(expect.arrayContaining(["LIMIT_TIGHTENED", "COLLECT_EXCESS"]));
+    expect(codes(d)).not.toContain("COLLECT_ALL");
+    expect(d.collectNow).toBe(3_000);
+  });
+
+  it("a brand-new buyer whose only record is one verified Visa payment gets net-7, not net-30", () => {
+    const d = evaluateCredit(goodBuyer({ invoices: [], vicSettledCount: 1 }), NOW);
+    expect(d.terms).toBe("NET_7");
+    expect(codes(d)).toContain("NET_7_DEFAULT");
+    expect(evaluateCredit(goodBuyer({ invoices: [], vicSettledCount: 0 }), NOW).terms).toBe("PREPAY");
   });
 });

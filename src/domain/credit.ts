@@ -51,7 +51,10 @@ export interface CreditPolicy {
   net30MinOnTimeRate: number;
   /** A buyer must have settled at least one VIC payment before getting credit. */
   requireVicBeforeCredit: boolean;
-  /** When the limit drops or terms fall to PREPAY, collect everything outstanding at once. */
+  /**
+   * When the buyer's human lowers the mandate budget, or terms fall to PREPAY, collect everything
+   * outstanding at once. Any other drop in the limit (a balance dip, a lower policy cap) collects only the excess.
+   */
   collectAllOnTightening: boolean;
 }
 
@@ -97,6 +100,8 @@ export interface CreditDecision {
   available: Cents;
   /** Amount to pull from the mandate right now. */
   collectNow: Cents;
+  /** The most a collection may pull now (mandate headroom and the buyer's balance). Whole orders may round a collection up to it. */
+  collectMax?: Cents;
   /** Amount owed that the mandate cannot cover; goes to a person. */
   escalate: Cents;
   reasons: Reason[];
@@ -105,6 +110,8 @@ export interface CreditDecision {
 export interface PreviousDecision {
   terms: Terms;
   limit: Cents;
+  /** The mandate budget the buyer's human had signed at that decision. */
+  budget?: Cents;
 }
 
 const DAY_MS = 86_400_000;
@@ -169,14 +176,16 @@ export function evaluateCredit(
 
   const tightened = previous !== undefined && limit < previous.limit;
   const demoted = previous !== undefined && previous.terms !== "PREPAY" && terms === "PREPAY";
+  // The buyer's human signed a smaller mandate: they are taking the line back.
+  const mandateCut = previous?.budget !== undefined && m !== undefined && m.budget < previous.budget;
   if (demoted) reasons.push({ code: "DEMOTED_TO_PREPAY", detail: `was ${previous!.terms}` });
-  else if (tightened) reasons.push({ code: "LIMIT_TIGHTENED", detail: `${usd(previous!.limit)} → ${usd(limit)}` });
+  else if (tightened) reasons.push({ code: "LIMIT_TIGHTENED", detail: `${usd(previous!.limit)} → ${usd(limit)}${mandateCut ? ` (the buyer's human lowered the mandate to ${usd(m!.budget)})` : ""}` });
 
   // 5. Collection. Never pull more than headroom or the buyer's balance.
   let collectNow: Cents = 0;
   let escalate: Cents = 0;
   if (buyer.outstanding > 0) {
-    const collectAll = policy.collectAllOnTightening && (tightened || demoted);
+    const collectAll = policy.collectAllOnTightening && (demoted || (tightened && mandateCut));
     const want = collectAll ? buyer.outstanding : max0(buyer.outstanding - limit);
     if (want > 0) {
       reasons.push(
@@ -190,7 +199,8 @@ export function evaluateCredit(
     }
   }
 
-  return { buyerId: buyer.buyerId, terms, limit, available: max0(limit - buyer.outstanding), collectNow, escalate, reasons };
+  const collectMax = mandateUsable ? min(headroom, balanceCap) : 0;
+  return { buyerId: buyer.buyerId, terms, limit, available: max0(limit - buyer.outstanding), collectNow, collectMax, escalate, reasons };
 }
 
 /** Largest single VIC payment the Airi test card allows (US$200). Orders above it are never split. */

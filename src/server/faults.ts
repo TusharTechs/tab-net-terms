@@ -5,7 +5,7 @@ import { StandinBooks, T0Mcp } from "../books/books.js";
 import { config } from "../config.js";
 import { Desk, type DeskState, fileStore } from "../desk/desk.js";
 import { NORTHWIND } from "../desk/northwind.js";
-import { MetalAgent, usdzBalance } from "../metal/agent.js";
+import { findTransfer, MetalAgent, txReceipt, USDZ, usdzBalance } from "../metal/agent.js";
 import { checkBooks, checkLive } from "../proof/checker.js";
 
 /**
@@ -35,8 +35,10 @@ export async function runFault(fault: Fault, deskFile: string): Promise<{ ok: bo
   const desk = new Desk(state, {
     supplierPayee: NORTHWIND.supplier,
     refusalKey: NORTHWIND.supplierWalletKey,
+    policyPublicKey: NORTHWIND.cfoPolicyKey.pub,
     metal: new MetalAgent(),
     balanceOf: (a) => usdzBalance(rpc, a),
+    findTransfer: (p) => findTransfer(rpc, p),
     books: new StandinBooks("fixtures/standin-books.json"),
     now: () => new Date(),
     persist: fileStore(deskFile).save,
@@ -60,6 +62,9 @@ export async function runFault(fault: Fault, deskFile: string): Promise<{ ok: bo
       const r = (await fetch(rpc, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_getTransactionReceipt", params: [tx] }) }).then((x) => x.json())) as { result?: { status?: string } };
       return r.result?.status ?? null;
     },
+    receipt: (tx) => txReceipt(rpc, tx),
+    supplier: NORTHWIND.supplier,
+    token: USDZ,
     conversionStatus: async (id) => (await awx.get<{ status: string }>(`/fx/conversions/${id}`)).status,
     paymentIntent: (id) => awx.get<{ status: string; captured_amount?: number }>(`/pa/payment_intents/${id}`),
     ...(t0 ? { journalEntry: (id: string) => t0.call<{ total_debit_atoms: number; total_credit_atoms: number }>("get_one_journal_entry", { journal_entry_id: id }) } : {}),

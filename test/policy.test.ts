@@ -61,21 +61,22 @@ describe("the book re-prices itself", () => {
     const history = [1, 2, 3].map((i) => ({ id: `I${i}`, amount: 1, dueDate: new Date(NOW.getTime() - i * 864e6), paidAt: new Date(NOW.getTime() - i * 864e6 - 864e5) }));
     const books: Books = { source: "standin", invoicesFor: async () => history };
     const state: DeskState = { buyers: { acme: { id: "acme", name: "Acme", account: "0xA", credential: "c", mandateKeyFile: "k", vicSettledCount: 1, orders: [] } }, events: [] };
-    return { desk: new Desk(state, { supplierPayee: "S", metal, balanceOf: async () => 1_000_000, books, now: () => NOW }), state, pulls };
+    const k = keys();
+    return { desk: new Desk(state, { supplierPayee: "S", metal, balanceOf: async () => 1_000_000, books, now: () => NOW, policyPublicKey: k.pub }), state, pulls, k, metal, books, NOW };
   }
 
   it("dry run shows the consequence; applying it does exactly that; offers re-price", async () => {
-    const { desk, state, pulls } = setup();
+    const { desk, state, pulls, k } = setup();
     await desk.placeAgentOrder("acme", { productId: "fx-backfill", units: 10, option: "net_30" }); // $120 on the tab, limit $400
-    const k = keys();
+    // A cap above what is owed: re-prices offers, collects nothing (the tab is not called in).
     const r = applyRails(DEFAULT_DESK_POLICY, proposal({ net30LimitUsd: 350, earlyPayDiscountPct: 3 }));
     const diff = await desk.dryRunPolicy(r.policy);
-    expect(diff[0]).toMatchObject({ before: { terms: "NET_30", limit: 40_000 }, after: { terms: "NET_30", limit: 35_000 }, outstanding: 12_000, wouldCollect: 12_000 });
+    expect(diff[0]).toMatchObject({ before: { terms: "NET_30", limit: 40_000 }, after: { terms: "NET_30", limit: 35_000 }, outstanding: 12_000, wouldCollect: 0 });
     expect(pulls).toEqual([]); // the dry run moved nothing
 
     const signed = signPolicy({ policy: r.policy, goals: "g", summary: "", accepted: r.accepted, rejected: r.rejected, notCompiled: [] }, k.priv);
-    expect(await desk.applyPolicy(signed, verifyPolicy(signed, k.pub), diff)).toBe(true);
-    expect(pulls).toEqual([12_000]); // tightening collected the tab, as the dry run said
+    expect(await desk.applyPolicy(signed, diff)).toBe(true);
+    expect(pulls).toEqual([]); // as the dry run said
     expect(state.events.some((e) => e.type === "policy")).toBe(true);
     const offer = await desk.offerFor("acme", "fx-backfill", 10);
     expect(offer.options.find((o) => o.option === "pay_in_10_discount")).toMatchObject({ amount: 11_640, discount: 0.03 });
@@ -83,11 +84,40 @@ describe("the book re-prices itself", () => {
 
   it("an unsigned or forged policy is not applied", async () => {
     const { desk, state } = setup();
-    const k = keys();
+    const other = keys(); // signed with a key the desk does not trust
     const r = applyRails(DEFAULT_DESK_POLICY, proposal({ earlyPayDiscountPct: 5 }));
-    const signed = signPolicy({ policy: r.policy, goals: "g", summary: "", accepted: r.accepted, rejected: [], notCompiled: [] }, k.priv);
-    expect(await desk.applyPolicy(signed, verifyPolicy(signed, keys().pub), [])).toBe(false);
+    const signed = signPolicy({ policy: r.policy, goals: "g", summary: "", accepted: r.accepted, rejected: [], notCompiled: [] }, other.priv);
+    expect(await desk.applyPolicy(signed, [])).toBe(false);
     expect(state.policy).toBeUndefined();
     expect(desk.salesTerms().earlyPay.discount).toBe(0.02);
+  });
+
+  it("the desk re-verifies a stored policy when it loads, and ignores one edited on disk", async () => {
+    const { desk, state, k, metal, books, NOW } = setup();
+    const r = applyRails(DEFAULT_DESK_POLICY, proposal({ earlyPayDiscountPct: 3 }));
+    const signed = signPolicy({ policy: r.policy, goals: "g", summary: "", accepted: r.accepted, rejected: [], notCompiled: [] }, k.priv);
+    await desk.applyPolicy(signed, []);
+    const reload = (s: DeskState) => new Desk(s, { supplierPayee: "S", metal, balanceOf: async () => 1_000_000, books, now: () => NOW, policyPublicKey: k.pub });
+    expect(reload(structuredClone(state)).salesTerms().earlyPay.discount).toBe(0.03);
+    const tampered = structuredClone(state);
+    tampered.policy!.policy.terms.earlyPay.discount = 0.05; // someone edits the desk file
+    const d2 = reload(tampered);
+    expect(d2.salesTerms().earlyPay.discount).toBe(0.02);
+    expect(tampered.events.at(-1)).toMatchObject({ type: "refused", summary: expect.stringMatching(/does not verify/) });
+    const goalsEdited = structuredClone(state);
+    goalsEdited.policy!.goals = "something the CFO never wrote"; // the audit trail is signed too
+    expect(reload(goalsEdited).salesTerms().earlyPay.discount).toBe(0.02);
+  });
+
+  it("a cap below what is owed collects the excess in whole orders, exactly as the dry run says", async () => {
+    const { desk, pulls, k } = setup();
+    await desk.placeAgentOrder("acme", { productId: "fx-backfill", units: 5, option: "net_30" }); // $60
+    await desk.placeAgentOrder("acme", { productId: "fx-backfill", units: 5, option: "net_30" }); // $60 → $120 owed
+    const r = applyRails(DEFAULT_DESK_POLICY, proposal({ net30LimitUsd: 100, net7LimitUsd: 100 }));
+    const diff = await desk.dryRunPolicy(r.policy);
+    expect(diff[0]).toMatchObject({ after: { limit: 10_000 }, outstanding: 12_000, wouldCollect: 6_000 }); // $20 over → one whole $60 order
+    const signed = signPolicy({ policy: r.policy, goals: "g", summary: "", accepted: r.accepted, rejected: r.rejected, notCompiled: [] }, k.priv);
+    await desk.applyPolicy(signed, diff);
+    expect(pulls).toEqual([6_000]);
   });
 });

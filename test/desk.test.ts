@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Books } from "../src/books/books.js";
 import type { InvoiceRecord } from "../src/domain/credit.js";
-import { batchPaymentId, Desk, type DeskState } from "../src/desk/desk.js";
+import { batchPaymentId, Desk, type DeskDeps, type DeskState } from "../src/desk/desk.js";
 import type { MandateStatus, PullOutcome } from "../src/metal/agent.js";
 
 const NOW = new Date("2026-11-09T12:00:00Z");
@@ -31,14 +31,14 @@ class FakeMandate {
 
 const goodHistory: InvoiceRecord[] = [1, 2, 3].map((i) => ({ id: `INV-${i}`, amount: 10_000, dueDate: day(-10 * i), paidAt: day(-10 * i - 1) }));
 
-function setup(invoices: InvoiceRecord[] = goodHistory) {
+function setup(invoices: InvoiceRecord[] = goodHistory, extra: Partial<DeskDeps> = {}) {
   const mandate = new FakeMandate();
   const books: Books = { source: "standin", invoicesFor: async () => invoices };
   const state: DeskState = {
     buyers: { acme: { id: "acme", name: "Acme", account: "0xAcme", credential: "keys/m.json", mandateKeyFile: "keys/m.key.json", vicSettledCount: 1, orders: [] } },
     events: [],
   };
-  const desk = new Desk(state, { supplierPayee: SUPPLIER, metal: mandate, balanceOf: async () => 500_000, books, now: () => NOW });
+  const desk = new Desk(state, { supplierPayee: SUPPLIER, metal: mandate, balanceOf: async () => 500_000, books, now: () => NOW, ...extra });
   return { desk, mandate, state };
 }
 
@@ -182,7 +182,7 @@ describe("Desk", () => {
     expect(state.events.filter((e) => e.type === "decision")).toHaveLength(2);
   });
 
-  it("a pending pull is re-sent as the same pull, never rebuilt as a new batch (no double collection)", async () => {
+  it("a pending pull that landed is taken from the chain, never re-sent or rebuilt (no double collection)", async () => {
     const { desk, mandate, state } = setup();
     await desk.placeOrder("acme", { id: "o1", amount: 4_000, description: "q" });
     // first pull answers pending (settles later on chain)
@@ -194,7 +194,7 @@ describe("Desk", () => {
         mandate.pulls.push({ amount: p.amount, paymentId: p.paymentId });
         mandate.spent += p.amount; // it does land on chain
         mandate.paid.set(p.paymentId, "0xlate");
-        return { outcome: "pending" as const };
+        return { outcome: "pending" as const, tx: "0xlate" };
       }
       return realPull(p);
     };
@@ -209,7 +209,8 @@ describe("Desk", () => {
     await desk.evaluate("acme");
 
     const forO1 = mandate.pulls.filter((p) => p.paymentId === mandate.pulls[0]!.paymentId);
-    expect(forO1.length).toBeGreaterThanOrEqual(2); // same pull re-sent
+    expect(forO1.length).toBe(1); // it landed: reconciled from the chain, never sent again
+    expect(state.events.some((e) => e.type === "collect" && /reconciled from the chain/.test(e.summary))).toBe(true);
     // o1 pulled exactly once at its pre-credit 40.00; the 5.00 credit (issued while o1 was in flight)
     // is netted off o2's 10.00, so o2's pull is 5.00. Total 45.00 = 35.00 + 10.00: nothing taken twice.
     expect(mandate.spent).toBe(4_500);
@@ -227,9 +228,49 @@ describe("Desk", () => {
     const spentAfterFirst = mandate.spent;
     // simulate a crash before the desk recorded the collection
     (desk.state.buyers.acme!.orders[0] as any).collectedBy = undefined;
-    desk.state.buyers.acme!.previous = { terms: "NET_30", limit: 90_000 };
+    desk.state.buyers.acme!.previous = { terms: "NET_30", limit: 90_000, budget: 1_000_000 };
     await desk.evaluate("acme");
     expect(mandate.spent).toBe(spentAfterFirst);
     expect(desk.state.events.filter((e) => e.type === "collect").at(-1)!.summary).toMatch(/already paid earlier/);
+  });
+
+  it("a pending pull that did NOT land is re-sent as the same pull", async () => {
+    const { desk, mandate, state } = setup();
+    await desk.placeOrder("acme", { id: "o1", amount: 4_000, description: "q" });
+    const realPull = mandate.pull;
+    let pendingOnce = true;
+    mandate.pull = async (p) => {
+      if (pendingOnce) { pendingOnce = false; mandate.pulls.push({ amount: p.amount, paymentId: p.paymentId }); return { outcome: "pending" as const }; }
+      return realPull(p);
+    };
+    mandate.budget = 10_000;
+    await desk.evaluate("acme");
+    await desk.evaluate("acme");
+    const ids = mandate.pulls.map((p) => p.paymentId);
+    expect(new Set(ids).size).toBe(1);
+    expect(mandate.spent).toBe(4_000);
+    expect(state.buyers.acme!.inflight).toBeUndefined();
+  });
+
+  it("a pull that landed with no tx on record is found on chain; if it can't be found, a person reconciles it", async () => {
+    for (const found of ["0xfound", null]) {
+      const { desk, mandate, state } = setup(undefined, found === null ? {} : { findTransfer: async () => found });
+      await desk.placeOrder("acme", { id: "o1", amount: 4_000, description: "q" });
+      const realPull = mandate.pull;
+      let pendingOnce = true;
+      mandate.pull = async (p) => {
+        if (pendingOnce) { pendingOnce = false; mandate.pulls.push({ amount: p.amount, paymentId: p.paymentId }); mandate.spent += p.amount; return { outcome: "pending" as const }; }
+        return realPull(p);
+      };
+      mandate.budget = 10_000;
+      await desk.evaluate("acme");
+      await desk.evaluate("acme");
+      expect(mandate.pulls).toHaveLength(1); // never re-sent either way
+      if (found) expect(state.buyers.acme!.orders[0]!.collectedBy).toBe("0xfound");
+      else {
+        expect(state.buyers.acme!.inflight).toBeDefined();
+        expect(state.events.some((e) => e.type === "escalate" && /not re-sending/.test(e.summary))).toBe(true);
+      }
+    }
   });
 });

@@ -1,7 +1,4 @@
 [
-  { "id": "INV-2001", "customerId": "globex", "amountCents": 8000, "dueDate": "2026-09-15T00:00:00Z", "paidAt": "2026-09-14T00:00:00Z" },
-  { "id": "INV-2002", "customerId": "globex", "amountCents": 12000, "dueDate": "2026-10-01T00:00:00Z", "paidAt": "2026-10-01T00:00:00Z" },
-  { "id": "INV-2003", "customerId": "globex", "amountCents": 9500, "dueDate": "2026-10-20T00:00:00Z", "paidAt": "2026-10-19T00:00:00Z" },
-  { "id": "INV-3001", "customerId": "initech", "amountCents": 6000, "dueDate": "2026-09-20T00:00:00Z", "paidAt": "2026-09-25T00:00:00Z" },
-  { "id": "INV-3002", "customerId": "initech", "amountCents": 40000, "dueDate": "2026-10-18T00:00:00Z" }
+  {"id": "INV-3001", "customerId": "initech", "amountCents": 6000, "dueDate": "2026-09-20T00:00:00Z", "paidAt": "2026-09-25T00:00:00Z"},
+  {"id": "INV-3002", "customerId": "initech", "amountCents": 40000, "dueDate": "2026-10-18T00:00:00Z"}
 ]
