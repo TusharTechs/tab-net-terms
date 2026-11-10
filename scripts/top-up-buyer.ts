@@ -26,7 +26,9 @@ if (!existsSync(CRED)) {
   run("node_modules/.bin/metal-agent", ["mandate", "bind", "--credential", CRED, "--key", OWNER, "--network", "testnet"], { stdio: "inherit", env: process.env });
 }
 for (let i = 1; i <= rounds; i++) {
-  await metal.fund(helper.account);
+  // Use what the helper already holds (for example after a refill from the Metal console's Faucet page);
+  // ask the faucet only when it is nearly empty.
+  if ((await usdzBalance(rpc, helper.account)) < 10_000) await metal.fund(helper.account);
   const bal = await usdzBalance(rpc, helper.account);
   const amount = Math.min(9_900, bal - 100);
   if (amount <= 0) break;

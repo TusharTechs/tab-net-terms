@@ -95,7 +95,13 @@ const GLOBEX_AGENT: BuyerPersona = {
 };
 
 // ── setup ────────────────────────────────────────────────────────────────────
-if ((await usdzBalance(cfg.METAL_RPC_URL!, ACME.account)) < 40_000) console.log("! Acme's testnet balance is under $400: run scripts/top-up-buyer.ts first for the full credit line");
+// Below ~$250 Acme's agent runs out of credit and pays part by card (which this run does not charge), and the
+// mid-book cap has nothing to collect: stop rather than spend a passkey on a run that can't show the story.
+{
+  const acmeBalance = await usdzBalance(cfg.METAL_RPC_URL!, ACME.account);
+  if (acmeBalance < 25_000 && process.env.FORCE !== "1") throw new Error(`Acme's testnet balance is $${(acmeBalance / 100).toFixed(2)}: top it up to at least $250 with scripts/top-up-buyer.ts (or set FORCE=1)`);
+  if (acmeBalance < 40_000) console.log(`! Acme's testnet balance is $${(acmeBalance / 100).toFixed(2)}: its credit limit will be capped by its balance`);
+}
 const globexAcct = await metal.createAccount(GLOBEX_OWNER, existsSync(GLOBEX_OWNER));
 if ((await usdzBalance(cfg.METAL_RPC_URL!, globexAcct.account)) < 9_000) await metal.fund(globexAcct.account);
 state.buyers = {
@@ -221,7 +227,7 @@ await pause();
 
 // ── 5b. Mid-book: the CFO tightens with tabs open; the book re-prices and the excess is collected ─
 say("5b · Mid-book, with tabs open, the CFO caps any single buyer's credit; the dry run shows what it costs, then the desk collects the excess on chain");
-await cfoChange("A large customer just failed to pay another supplier, so cut our concentration risk: until month end, no single buyer may owe us more than $150 on credit, whatever their terms. Keep the 3% early-pay discount.");
+await cfoChange("A large customer just failed to pay another supplier, so cut our concentration risk: until month end, no single buyer may owe us more than $100 on credit, whatever their terms. Keep the 3% early-pay discount.");
 tail();
 await pause();
 
