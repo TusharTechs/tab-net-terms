@@ -34,4 +34,15 @@ Re-checked after the run, outside the desk's own checker:
 - All three conversions read back SETTLED with the amounts above. T:0 JE-10 read back 18,624 / 18,624 and JE-11 2,425 / 2,425, lines 11410 (debit) and 12100 (credit, counterparty `t0_customer_prod_e9882b26f7979f04d28e`).
 - The applied policy's signature verifies under `keys/cfo-policy.public.json`; it holds `requireVicBeforeCredit: true`.
 
+## Live fault: kill the desk mid-pull on the credit line
+
+Run on a copy of this run's state (`data/desk-faults.json`, screen started with `ALLOW_FAULTS=1`), after Acme's balance was topped up to $150.06 (helper pull `0x94d53e14…40cb`):
+
+1. A $20.00 order (500 market-data queries, net-30) went on Acme's tab, and Acme asked to pay now.
+2. The desk recorded the pull as in flight (with the mandate's spent total), sent it to Metal, and was killed before recording Metal's answer.
+3. A statement drafted over the same order was refused: the order was in a pull still in flight.
+4. A fresh desk restarted from disk, saw the mandate's spent total had risen by the pull, found the transfer on chain and recorded it, **sending nothing again**.
+
+Result: pulls sent **1**; Acme's balance moved **$20.00** ($150.06 → $130.06); the proof re-ran at **21/21**. The collection `0xb6a6361fa19d0f6a32e64e145526bd866d3d946b36ad9cc6779ae5e19f03a355` read back status `0x1` with one transfer log of 20.00 USDZ from Acme to the supplier wallet, and a search of the last ~90 minutes of blocks found no other $20.00 transfer from Acme to Northwind.
+
 Earlier runs today: `rmwauvu7l` (Acme underfunded: its agent paid part by card and the mid-book cap had nothing to collect, so the demo now refuses to start with Acme under $250), `rmwan72qu` (first run after the hardening), `rmwalbcax` (first card-secured tab run; exposed a dispute credit priced at list, fixed since), `rmwaklnvk`, `rmwakbsuw`, `rmwak3gb9`, `rmwad9tq7` (exposed the same-day statement grouping bug), `dmwa9mdjr` (six-scene run). Their ids are in git history.
