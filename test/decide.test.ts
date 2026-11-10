@@ -38,3 +38,12 @@ describe("decideDispute", () => {
     expect(d.findings.map((f) => f.verdict)).toEqual(["escalate", "escalate"]);
   });
 });
+
+describe("credits are priced at what was charged", () => {
+  it("a 3%-discounted order gets credit at the discounted unit price, not list", () => {
+    const ev = new Map([["d1", { id: "d1", priceRoute: "/v2/query", unitPrice: 4, units: 2000, staleUnits: 200, proof: "order d1", credited: 0, charged: 7_760 }]]);
+    const r = decideDispute([{ type: "data_quality", orderIds: ["d1"], units: 2000, quote: "all stale" }], ev);
+    expect(r.findings[0]).toMatchObject({ verdict: "credit", amount: 776 });
+    expect(r.findings[0]!.reason).toMatch(/3\.88¢ charged per unit/);
+  });
+});

@@ -74,6 +74,7 @@
   .p-vic, .p-mandate, .p-settle, .p-statement { background: var(--good-bg); color: var(--good); }
   .p-refused { background: var(--bad-bg); color: var(--bad); }
   .p-agent { background: var(--info-bg); color: var(--info); }
+  .p-policy { background: var(--accent); color: #fff; }
   .p-proof { background: var(--ink); color: var(--bg); }
   .ev.agent .sum { font-style: italic; border-left: 3px solid var(--info); padding-left: 10px; }
   .who { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; display: block; margin-bottom: 2px; }
@@ -84,6 +85,11 @@
   .proof ul { list-style: none; margin: 10px 0 0; padding: 0; font-size: 13px; }
   .proof li { padding: 4px 0; break-inside: avoid; }
   .proof details { font-size: 13px; padding: 4px 0; }
+  .try { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line); font-size: 13px; }
+  .try b { display: block; margin-bottom: 8px; }
+  .try button { font: inherit; font-size: 12px; padding: 6px 10px; margin: 0 6px 6px 0; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); cursor: pointer; }
+  .try button:disabled { opacity: .5; cursor: wait; }
+  .try output { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; min-height: 1em; }
   .proof summary { cursor: pointer; }
   .proof details ul { columns: 1; margin: 4px 0 6px 20px; }
   .proof li small { color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -164,9 +170,9 @@ function eventRow(e, fresh) {
   const d = e.data || {};
   const chainTx = d.tx || d.metalTx;
   const tx = chainTx ? `<br><a href="${EXPLORER}${esc(chainTx)}" target="_blank" rel="noopener">Metal tx ${esc(short(chainTx))} ↗</a>` : "";
-  const awx = [d.paymentIntentId && `payment ${d.paymentIntentId}`, d.depositId && `deposit ${short(d.depositId)}`, d.conversionId && `conversion ${short(d.conversionId)}`, d.journalEntryId && `T:0 journal ${d.journalEntryId}`, d.model && `read by ${d.model}`].filter(Boolean);
+  const awx = [d.paymentIntentId && `payment ${d.paymentIntentId}`, d.depositId && `deposit ${short(d.depositId)}`, d.conversionId && `conversion ${short(d.conversionId)}`, d.journalEntryId && `T:0 journal ${d.journalEntryId}`, d.model && `model ${d.model}`].filter(Boolean);
   const ids = awx.length ? `<div class="ids">${esc(awx.join(" · "))}</div>` : "";
-  const label = { vic: "Visa VIC", collect_refused: "refused", settle: "Airwallex", agent: "buyer agent", proof: "proof" }[e.type] ?? e.type.replace("_", " ");
+  const label = { vic: "Visa VIC", collect_refused: "refused", settle: "Airwallex", agent: "buyer agent", proof: "proof", policy: "CFO policy" }[e.type] ?? e.type.replace("_", " ");
   const who = e.buyerId && e.buyerId !== "desk" ? `<span class="who">${esc(NAMES[e.buyerId] ?? e.buyerId)}</span>` : "";
   return `<li class="ev ${esc(e.type)}${fresh ? " new" : ""}"><time>${t}</time><span class="pill p-${esc(e.type)}">${esc(label)}</span><div class="sum">${who}${esc(e.summary)}${tx}${ids}</div></li>`;
 }
@@ -175,8 +181,30 @@ function renderProof(e) {
   const checks = (e.data && e.data.checks) || [];
   const breaks = checks.filter((c) => !c.ok).length;
   document.getElementById("proof").innerHTML = `<div class="proof"><div class="head"><b>Every dollar proven</b><span class="${breaks ? "bad" : "ok"}">${checks.length - breaks}/${checks.length} checks pass${breaks ? ` · ${breaks} break(s)` : ""}</span></div>
-    ${proofGroups(checks)}</div>`;
+    ${proofGroups(checks)}${tryPanel()}</div>`;
 }
+
+let FAULTS = null;
+let tryResult = "";
+function tryPanel() {
+  if (!FAULTS) return "";
+  const buttons = Object.entries(FAULTS).map(([k, label]) => `<button data-fault="${esc(k)}">${esc(label)}</button>`).join("");
+  return `<div class="try"><b>Try to make TAB double-charge</b>${buttons}<output id="tryOut">${esc(tryResult)}</output></div>`;
+}
+document.addEventListener("click", async (ev) => {
+  const btn = ev.target.closest && ev.target.closest("button[data-fault]");
+  if (!btn) return;
+  document.querySelectorAll("button[data-fault]").forEach((b) => (b.disabled = true));
+  tryResult = "sending to Metal testnet…";
+  document.getElementById("tryOut").textContent = tryResult;
+  try {
+    const r = await fetch(`/api/try/${btn.dataset.fault}`, { method: "POST" }).then((x) => x.json());
+    tryResult = r.message;
+  } catch (e) { tryResult = String(e); }
+  const out = document.getElementById("tryOut");
+  if (out) out.textContent = tryResult;
+  document.querySelectorAll("button[data-fault]").forEach((b) => (b.disabled = false));
+});
 
 const checkLi = (c) => `<li><span class="${c.ok ? "ok" : "bad"}">${c.ok ? "✔" : "✘"}</span> ${esc(c.name)}<br><small>${esc(c.detail)}</small></li>`;
 function proofGroups(checks) {
@@ -207,6 +235,7 @@ function addEvents(events, fresh) {
 }
 
 fetch("/api/state").then((r) => r.json()).then((s) => {
+  FAULTS = s.faults;
   renderBuyers(s.buyers);
   addEvents(s.events, false);
   document.getElementById("foot").textContent = `Desk log: ${s.deskFile}. Chain data is live Metal testnet; card and FX are the Airwallex sandbox.`;

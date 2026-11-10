@@ -6,7 +6,8 @@ import { type CreditDecision, type CreditPolicy, DEFAULT_POLICY, evaluateCredit,
 import type { Cents } from "../domain/money.js";
 import type { DisputeDecision, OrderEvidence } from "../disputes/decide.js";
 import type { MandateStatus, PullOutcome } from "../metal/agent.js";
-import { CATALOG, type PaymentOption, quote } from "../terms/offers.js";
+import { type DeskPolicy, policyHash, type SignedPolicy } from "../policy/policy.js";
+import { CATALOG, DEFAULT_TERMS, type PaymentOption, quote, type SalesTerms } from "../terms/offers.js";
 
 /**
  * The supplier's desk: it takes agent orders, keeps each buyer's tab, re-evaluates credit
@@ -37,6 +38,8 @@ export interface Order {
   dueAt?: string;
   /** Discount off list taken for early payment (fraction). */
   discount?: number;
+  /** Card-secured tab: the Visa authorisation that guarantees it, and what was captured at due. */
+  card?: { paymentIntentId: string; airiMandateId: string; statementId: string; authorised: Cents; captured?: Cents };
 }
 
 /** What the buyer still owes on an order. */
@@ -63,6 +66,8 @@ export interface Buyer {
   inflight?: { paymentId: string; orderIds: string[]; amount: Cents; creditApplied: Cents; credential: string; mandateKeyFile: string };
   /** Statements issued as their own Metal mandates (the statement IS the mandate). */
   statements?: Statement[];
+  /** Airwallex payment intents already counted toward terms (each counts once). */
+  vicPaymentIds?: string[];
 }
 
 /**
@@ -91,7 +96,7 @@ export interface DeskEvent {
   seq: number;
   at: string;
   buyerId: string;
-  type: "order" | "decision" | "collect" | "collect_refused" | "escalate" | "credit" | "dispute" | "vic" | "mandate" | "books" | "settle" | "agent" | "refused" | "statement" | "proof";
+  type: "order" | "decision" | "collect" | "collect_refused" | "escalate" | "credit" | "dispute" | "vic" | "mandate" | "books" | "settle" | "agent" | "refused" | "statement" | "proof" | "policy";
   summary: string;
   data: Record<string, unknown>;
 }
@@ -99,6 +104,19 @@ export interface DeskEvent {
 export interface DeskState {
   buyers: Record<string, Buyer>;
   events: DeskEvent[];
+  /** The CFO's signed policy in force (defaults when absent). */
+  policy?: SignedPolicy;
+}
+
+/** One buyer's credit before and after a proposed policy, without acting on it. */
+export interface PolicyDiffRow {
+  buyerId: string;
+  name: string;
+  before: { terms: string; limit: Cents };
+  after: { terms: string; limit: Cents };
+  outstanding: Cents;
+  /** What the desk would collect at once if this policy were applied now. */
+  wouldCollect: Cents;
 }
 
 export interface DeskDeps {
@@ -113,7 +131,7 @@ export interface DeskDeps {
   books: Books;
   now(): Date;
   /** Reads a payment intent from Airwallex, so the VIC gate verifies rather than trusts. */
-  readPaymentIntent?(id: string): Promise<{ status: string; captured_amount?: number; merchant_order_id?: string; metadata?: Record<string, string> }>;
+  readPaymentIntent?(id: string): Promise<{ status: string; amount?: number; captured_amount?: number; merchant_order_id?: string; metadata?: Record<string, string> }>;
   policy?: CreditPolicy;
   persist?(state: DeskState): void;
 }
@@ -152,17 +170,25 @@ export class Desk {
    * Re-reads mandate, balance and books, decides, and collects if the decision says so.
    * After a collection it re-reads once, so the log (and the screen) shows the state after the pull.
    */
-  async evaluate(buyerId: string, afterCollect = false): Promise<CreditDecision> {
-    const b = this.buyer(buyerId);
+  /** The credit policy in force: the CFO's signed policy, else the configured default. */
+  creditPolicy(): CreditPolicy {
+    return this.state.policy?.policy.credit ?? this.deps.policy ?? DEFAULT_POLICY;
+  }
+
+  salesTerms(): SalesTerms {
+    return this.state.policy?.policy.terms ?? DEFAULT_TERMS;
+  }
+
+  private async inputsFor(b: Buyer) {
     const mandate = b.credential ? await this.deps.metal.status(b.credential) : undefined;
     const [balance, invoices] = await Promise.all([this.deps.balanceOf(b.account), this.deps.books.invoicesFor(b.id)]);
+    return { mandate, balance, invoices, input: { buyerId: b.id, supplierPayee: this.deps.supplierPayee, ...(mandate ? { mandate } : {}), onchainBalance: balance, invoices, vicSettledCount: b.vicSettledCount, outstanding: outstandingOf(b) } };
+  }
 
-    const decision = evaluateCredit(
-      { buyerId: b.id, supplierPayee: this.deps.supplierPayee, ...(mandate ? { mandate } : {}), onchainBalance: balance, invoices, vicSettledCount: b.vicSettledCount, outstanding: outstandingOf(b) },
-      this.deps.now(),
-      this.deps.policy ?? DEFAULT_POLICY,
-      b.previous,
-    );
+  async evaluate(buyerId: string, afterCollect = false): Promise<CreditDecision> {
+    const b = this.buyer(buyerId);
+    const { mandate, balance, invoices, input } = await this.inputsFor(b);
+    const decision = evaluateCredit(input, this.deps.now(), this.creditPolicy(), b.previous);
     const summary = `${decision.terms} · limit ${usd(decision.limit)} · available ${usd(decision.available)}`;
     const lastDecision = [...this.state.events].reverse().find((e) => e.buyerId === b.id && e.type === "decision");
     const unchanged = lastDecision?.summary === summary && decision.collectNow === 0 && decision.escalate === 0;
@@ -251,7 +277,7 @@ export class Desk {
   /** What Northwind offers this buyer for this order right now (fresh credit decision, code-priced). */
   async offerFor(buyerId: string, productId: string, units: number) {
     const decision = await this.evaluate(buyerId);
-    return quote(productId, units, decision);
+    return quote(productId, units, decision, this.salesTerms());
   }
 
   /**
@@ -281,14 +307,14 @@ export class Desk {
     const now = this.deps.now();
     const id = `ord-${now.getTime().toString(36)}-${b.orders.length + 1}`;
     const dueAt = chosen.dueInDays > 0 ? new Date(now.getTime() + chosen.dueInDays * 86_400_000).toISOString() : null;
-    const route: Order["route"] = chosen.option === "prepay_card" ? "PREPAY_VIC" : "ON_TAB";
+    const route: Order["route"] = chosen.option === "prepay_card" ? "PREPAY_VIC" : chosen.option === "card_net_7" ? "CARD_AUTH" : "ON_TAB";
     const order: Order = {
       id, amount: chosen.amount, description: `${p.name} · ${req.units} ${p.unit}`, placedAt: now.toISOString(), route,
       productId: p.id, units: req.units, unitPrice: p.unitPrice, priceRoute: p.priceRoute, option: chosen.option, discount: chosen.discount,
       ...(dueAt ? { dueAt } : {}), ...(req.staleUnits !== undefined ? { staleUnits: req.staleUnits } : {}),
     };
     b.orders.push(order);
-    const terms = chosen.option === "prepay_card" ? "prepay by Visa card" : chosen.option === "net_30" ? "net-30 on the tab" : chosen.option === "net_7" ? "net-7 on the tab" : `${chosen.discount * 100}% off, due in ${chosen.dueInDays} days, on the tab`;
+    const terms = chosen.option === "prepay_card" ? "prepay by Visa card" : chosen.option === "card_net_7" ? `${chosen.dueInDays}-day tab secured by a Visa authorisation` : chosen.option === "net_30" ? "net-30 on the tab" : chosen.option === "net_7" ? "net-7 on the tab" : `${chosen.discount * 100}% off, due in ${chosen.dueInDays} days, on the tab`;
     this.emit(b.id, "order", `${id} ${order.description}: ${usd(order.amount)} → ${terms}`, { order, note: req.note ?? null });
     return { ok: true, orderId: id, amount: order.amount, dueAt, route };
   }
@@ -311,6 +337,7 @@ export class Desk {
     const b = this.buyer(buyerId);
     const o = b.orders.find((x) => x.id === orderId);
     if (!o) throw new Error(`unknown order ${orderId}`);
+    if (o.route === "CARD_AUTH" && o.collectedBy) throw new Error(`order ${orderId} was already captured on the card: a refund there needs a person`);
     const room = o.amount - (o.credited ?? 0);
     const applied = Math.max(0, Math.min(amount, room));
     if (applied === 0) return 0;
@@ -423,14 +450,109 @@ export class Desk {
       statement: pi.merchant_order_id === p.statementId,
       hash: (pi.metadata?.statement_hash ?? "") === p.statementHash,
     };
-    const ok = Object.values(checks).every(Boolean);
+    const already = (b.vicPaymentIds ?? []).includes(p.paymentIntentId);
+    const ok = Object.values(checks).every(Boolean) && !already;
+    if (already) {
+      this.emit(b.id, "refused", `VIC payment ${p.paymentIntentId} was already counted toward terms`, { ...p });
+      return false;
+    }
     if (ok) {
       b.vicSettledCount += 1;
+      (b.vicPaymentIds ??= []).push(p.paymentIntentId);
       this.emit(b.id, "vic", `Visa-verified payment ${usd(Math.round((pi.captured_amount ?? 0) * 100))} checked against Airwallex (statement ${p.statementId}) → counts toward terms`, { ...p, checks });
     } else {
       this.emit(b.id, "refused", `VIC payment ${p.paymentIntentId} did not verify: ${Object.entries(checks).filter(([, v]) => !v).map(([k]) => k).join(", ")}`, { ...p, checks });
     }
     return ok;
+  }
+
+  /**
+   * A card-secured tab: the buyer's passkey-approved Visa authorisation for these orders, checked
+   * against Airwallex (authorised, not captured, for exactly their total, tied to the statement).
+   */
+  async recordCardAuthorisation(buyerId: string, orderIds: string[], p: { paymentIntentId: string; airiMandateId: string; statementId: string; statementHash: string }): Promise<boolean> {
+    const b = this.buyer(buyerId);
+    if (!this.deps.readPaymentIntent) throw new Error("readPaymentIntent dependency missing");
+    const orders = orderIds.map((id) => b.orders.find((o) => o.id === id && o.route === "CARD_AUTH" && !o.card));
+    if (orders.some((o) => !o)) throw new Error("every order must be an unauthorised card-secured order");
+    const total = orders.reduce((s, o) => s + o!.amount, 0);
+    const pi = await this.deps.readPaymentIntent(p.paymentIntentId);
+    const checks = {
+      authorised: pi.status === "REQUIRES_CAPTURE",
+      amount: Math.round(Number(pi.amount ?? 0) * 100) === total,
+      statement: pi.merchant_order_id === p.statementId,
+      hash: (pi.metadata?.statement_hash ?? "") === p.statementHash,
+    };
+    const ok = Object.values(checks).every(Boolean);
+    if (!ok) {
+      this.emit(b.id, "refused", `card authorisation ${p.paymentIntentId} did not verify: ${Object.entries(checks).filter(([, v]) => !v).map(([k]) => k).join(", ")}`, { ...p, checks });
+      return false;
+    }
+    for (const o of orders) o!.card = { paymentIntentId: p.paymentIntentId, airiMandateId: p.airiMandateId, statementId: p.statementId, authorised: o!.amount };
+    this.emit(b.id, "vic", `Visa authorisation ${usd(total)} holds the tab for ${orders.length} order(s) (statement ${p.statementId}, checked against Airwallex: authorised, not captured)`, { ...p, checks, orderIds });
+    return true;
+  }
+
+  /**
+   * At the due date the supplier captured the undisputed amount. Checked against Airwallex: the
+   * capture must equal what is owed after credits, never more. A verified capture is a settled
+   * Visa payment, so it counts toward terms (once).
+   */
+  async verifyCardCapture(buyerId: string, paymentIntentId: string): Promise<boolean> {
+    const b = this.buyer(buyerId);
+    if (!this.deps.readPaymentIntent) throw new Error("readPaymentIntent dependency missing");
+    const orders = b.orders.filter((o) => o.card?.paymentIntentId === paymentIntentId && !o.collectedBy);
+    if (!orders.length) throw new Error(`no open card-secured orders on ${paymentIntentId}`);
+    const owed = orders.reduce((s, o) => s + dueOn(o), 0);
+    const authorised = orders.reduce((s, o) => s + o.card!.authorised, 0);
+    const pi = await this.deps.readPaymentIntent(paymentIntentId);
+    const captured = Math.round(Number(pi.captured_amount ?? 0) * 100);
+    const checks = { succeeded: pi.status === "SUCCEEDED", capturedOwed: captured === owed };
+    if (!Object.values(checks).every(Boolean) || (b.vicPaymentIds ?? []).includes(paymentIntentId)) {
+      this.emit(b.id, "refused", `card capture on ${paymentIntentId} did not verify: captured ${usd(captured)}, owed ${usd(owed)}, status ${pi.status}`, { paymentIntentId, checks });
+      return false;
+    }
+    for (const o of orders) {
+      o.collectedBy = `card:${paymentIntentId}`;
+      o.card!.captured = dueOn(o);
+    }
+    b.vicSettledCount += 1;
+    (b.vicPaymentIds ??= []).push(paymentIntentId);
+    this.emit(b.id, "vic", `captured ${usd(captured)} of the ${usd(authorised)} authorised: only the undisputed amount; the rest of the hold lapses (checked against Airwallex) → counts toward terms`, { paymentIntentId, captured, authorised, orderIds: orders.map((o) => o.id), checks });
+    this.deps.persist?.(this.state);
+    return true;
+  }
+
+  /** What a proposed policy would do to every buyer right now. Reads live inputs; changes nothing. */
+  async dryRunPolicy(proposed: DeskPolicy): Promise<PolicyDiffRow[]> {
+    const rows: PolicyDiffRow[] = [];
+    const now = this.deps.now();
+    for (const b of Object.values(this.state.buyers)) {
+      const { input } = await this.inputsFor(b);
+      const before = evaluateCredit(input, now, this.creditPolicy(), b.previous);
+      const after = evaluateCredit(input, now, proposed.credit, { terms: before.terms, limit: before.limit });
+      rows.push({ buyerId: b.id, name: b.name, before: { terms: before.terms, limit: before.limit }, after: { terms: after.terms, limit: after.limit }, outstanding: input.outstanding, wouldCollect: after.collectNow });
+    }
+    return rows;
+  }
+
+  /**
+   * Applies the CFO's policy only if its signature verifies under the supplier's key, then
+   * re-evaluates every buyer under it (which may collect, exactly as the dry run showed).
+   */
+  async applyPolicy(signed: SignedPolicy, verified: boolean, diff: PolicyDiffRow[]): Promise<boolean> {
+    if (!verified) {
+      const actual = policyHash(signed.policy);
+      const why = actual !== signed.hash ? `its content (hash ${actual.slice(0, 12)}…) is not what Northwind signed (${signed.hash.slice(0, 12)}…)` : "its signature does not verify under Northwind's key";
+      this.emit("desk", "refused", `policy not applied: ${why}`, { signedHash: signed.hash, actualHash: actual });
+      return false;
+    }
+    this.state.policy = signed;
+    const changed = signed.accepted.map((c) => policyChangeText(c)).join("; ") || "no change";
+    this.emit("desk", "policy", `CFO policy signed and applied: ${changed}${signed.rejected.length ? ` · rejected by code: ${signed.rejected.map((c) => `${c.field} (${c.why})`).join("; ")}` : ""}${signed.notCompiled.length ? ` · not expressible: ${signed.notCompiled.map((n) => n.goal).join("; ")}` : ""}`, { hash: signed.hash, signature: signed.signature, kid: signed.kid, goals: signed.goals, accepted: signed.accepted, rejected: signed.rejected, notCompiled: signed.notCompiled, diff, model: signed.model });
+    for (const id of Object.keys(this.state.buyers)) await this.evaluate(id);
+    this.deps.persist?.(this.state);
+    return true;
   }
 
   /** The buyer's human bound (or replaced) a debit mandate naming this supplier. */
@@ -457,7 +579,7 @@ export class Desk {
     return new Map(
       b.orders
         .filter((o) => o.unitPrice !== undefined && o.units !== undefined)
-        .map((o) => [o.id, { id: o.id, priceRoute: o.priceRoute ?? "", unitPrice: o.unitPrice!, units: o.units!, staleUnits: o.staleUnits ?? 0, proof: o.collectedBy ? `order ${o.id}, collected in tx ${o.collectedBy}` : `order ${o.id} placed ${o.placedAt}`, credited: o.credited ?? 0 }]),
+        .map((o) => [o.id, { id: o.id, priceRoute: o.priceRoute ?? "", unitPrice: o.unitPrice!, units: o.units!, staleUnits: o.staleUnits ?? 0, proof: o.collectedBy ? `order ${o.id}, collected in tx ${o.collectedBy}` : `order ${o.id} placed ${o.placedAt}`, credited: o.credited ?? 0, charged: o.amount }]),
     );
   }
 }
@@ -479,4 +601,21 @@ export function fileStore(path: string): { load(): DeskState; save(s: DeskState)
       renameSync(`${path}.tmp`, path);
     },
   };
+}
+
+/** "net-30 limit $900.00 → $350.00" style text for a policy change. */
+export function policyChangeText(c: { field: string; from: number; to: number }): string {
+  const money = (v: number) => usd(v);
+  const pct = (v: number) => `${+(v * 100).toFixed(2)}%`;
+  const fmt: Record<string, [string, (v: number) => string]> = {
+    net7Limit: ["net-7 limit", money],
+    net30Limit: ["net-30 limit", money],
+    net30MinOnTimeInvoices: ["on-time invoices for net-30", String],
+    net30MinOnTimeRate: ["on-time rate for net-30", pct],
+    graceDays: ["grace days", String],
+    earlyPayDiscount: ["early-pay discount", pct],
+    earlyPayDays: ["early-pay window (days)", String],
+  };
+  const [label, f] = fmt[c.field] ?? [c.field, String];
+  return `${label} ${f(c.from)} → ${f(c.to)}`;
 }

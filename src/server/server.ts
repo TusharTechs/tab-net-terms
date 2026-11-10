@@ -2,16 +2,22 @@ import { createReadStream, existsSync, readFileSync, statSync } from "node:fs";
 import { createServer } from "node:http";
 import { extname, join, resolve } from "node:path";
 import type { DeskEvent, DeskState } from "../desk/desk.js";
+import { type Fault, FAULTS } from "./faults.js";
 
 /**
  * Demo screen server. Serves public/ and streams the desk's event log (a JSON file the
- * desk writes) over Server-Sent Events. Read-only: it never moves money.
+ * desk writes) over Server-Sent Events. Read-only, unless ALLOW_FAULTS=1 turns on the
+ * "try to make TAB double-charge" buttons, which send real (refused-by-design) collection
+ * attempts to Metal testnet from localhost.
  *   DESK_FILE=data/desk-hook.json PORT=4173 npx tsx src/server/server.ts
  */
 
 const PORT = Number(process.env.PORT ?? 4173);
 const DESK_FILE = resolve(process.env.DESK_FILE ?? "data/desk-demo.json");
 const PUBLIC = resolve("public");
+/** Live fault buttons ("try to make TAB double-charge"): off unless ALLOW_FAULTS=1, localhost only. */
+const ALLOW_FAULTS = process.env.ALLOW_FAULTS === "1";
+let faultBusy = false;
 const TYPES: Record<string, string> = { ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml" };
 
 function readState(): DeskState {
@@ -52,7 +58,22 @@ const server = createServer((req, res) => {
   if (url.pathname === "/api/state") {
     const s = readState();
     res.writeHead(200, { "content-type": "application/json" });
-    res.end(JSON.stringify({ buyers: summarize(s), events: s.events, deskFile: DESK_FILE.split("/").slice(-2).join("/") }));
+    res.end(JSON.stringify({ buyers: summarize(s), events: s.events, deskFile: DESK_FILE.split("/").slice(-2).join("/"), faults: ALLOW_FAULTS ? FAULTS : null }));
+    return;
+  }
+  if (url.pathname.startsWith("/api/try/") && req.method === "POST") {
+    const fault = url.pathname.slice("/api/try/".length) as Fault;
+    const local = ["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(req.socket.remoteAddress ?? "");
+    const send = (code: number, body: unknown) => res.writeHead(code, { "content-type": "application/json" }).end(JSON.stringify(body));
+    if (!ALLOW_FAULTS || !local) return send(403, { ok: false, message: "fault buttons are off (ALLOW_FAULTS=1, localhost only)" });
+    if (!Object.hasOwn(FAULTS, fault)) return send(404, { ok: false, message: "unknown fault" });
+    if (faultBusy) return send(409, { ok: false, message: "another attempt is still running" });
+    faultBusy = true;
+    import("./faults.js")
+      .then((m) => m.runFault(fault, DESK_FILE))
+      .then((r) => send(200, r))
+      .catch((e) => send(500, { ok: false, message: e instanceof Error ? e.message : String(e) }))
+      .finally(() => { faultBusy = false; });
     return;
   }
   if (url.pathname === "/api/stream") {

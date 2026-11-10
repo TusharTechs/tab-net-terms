@@ -199,6 +199,8 @@ export const VIC_MAX_PER_TXN: Cents = 20_000;
 export type OrderRoute =
   | { kind: "ON_TAB" }
   | { kind: "PREPAY_VIC" }
+  /** A short tab secured by a Visa authorisation; captured (undisputed amount only) at the due date. */
+  | { kind: "CARD_AUTH" }
   | { kind: "PREPAY_INVOICE"; reason: "OVER_VIC_CAP" };
 
 /** Where a new order goes, given the buyer's current decision. Never splits an order. */

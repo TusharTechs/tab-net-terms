@@ -23,7 +23,7 @@ export const CATALOG: Product[] = [
   { id: "sla-day", name: "Priority SLA", unitPrice: 2_500, unit: "day", priceRoute: "/v2/sla", maxUnits: 10 },
 ];
 
-export type PaymentOption = "prepay_card" | "net_7" | "net_30" | "pay_in_10_discount";
+export type PaymentOption = "prepay_card" | "card_net_7" | "net_7" | "net_30" | "pay_in_10_discount";
 
 export interface OptionQuote {
   option: PaymentOption;
@@ -47,7 +47,16 @@ export interface Offer {
   notes: string[];
 }
 
-export const EARLY_PAY = { days: 10, discount: 0.02 } as const;
+/** The supplier's sales terms. Set by the CFO's signed policy; defaults below. */
+export interface SalesTerms {
+  /** Early-pay discount: `discount` off list if collected within `days`. */
+  earlyPay: { days: number; discount: number };
+}
+
+export const DEFAULT_TERMS: SalesTerms = { earlyPay: { days: 10, discount: 0.02 } };
+export const EARLY_PAY = DEFAULT_TERMS.earlyPay;
+/** Card-secured tab: kept short so the capture falls well inside the card authorisation's hold. */
+export const CARD_TAB_DAYS = 7;
 export const NET_DAYS = 30;
 
 /** Annualised return of taking a d% discount for paying (net - early) days sooner. */
@@ -55,7 +64,8 @@ export function discountYield(discount: number, earlyDays: number, netDays: numb
   return (discount / (1 - discount)) * (365 / (netDays - earlyDays));
 }
 
-export function quote(productId: string, units: number, decision: CreditDecision): Offer {
+export function quote(productId: string, units: number, decision: CreditDecision, terms: SalesTerms = DEFAULT_TERMS): Offer {
+  const early = terms.earlyPay;
   const p = CATALOG.find((x) => x.id === productId);
   if (!p) throw new Error(`unknown product ${productId}`);
   if (!Number.isInteger(units) || units < 1 || units > p.maxUnits) throw new Error(`units must be 1..${p.maxUnits}`);
@@ -71,20 +81,26 @@ export function quote(productId: string, units: number, decision: CreditDecision
 
   if (decision.terms === "PREPAY") {
     notes.push(`no credit terms: ${decision.reasons.map((r) => r.detail).join("; ")}`);
+    // The on-ramp: a buyer with no Metal terms yet (and nothing overdue) can still pay later, because
+    // a passkey-approved Visa authorisation secures the tab. Only the undisputed amount is captured.
+    const overdue = decision.reasons.some((r) => r.code === "OVERDUE_INVOICE");
+    if (listAmount <= VIC_MAX_PER_TXN && !overdue) {
+      options.push({ option: "card_net_7", amount: listAmount, dueInDays: CARD_TAB_DAYS, discount: 0, description: `On a ${CARD_TAB_DAYS}-day tab secured now by a Visa authorisation (passkey-approved); at the due date only the undisputed amount is captured` });
+    }
   } else if (listAmount > decision.available) {
     notes.push(`over available credit ($${(decision.available / 100).toFixed(2)} available)`);
   } else if (decision.terms === "NET_7") {
     options.push({ option: "net_7", amount: listAmount, dueInDays: 7, discount: 0, description: "On your tab, due in 7 days (net-30 is earned with on-time history)" });
   } else {
     options.push({ option: "net_30", amount: listAmount, dueInDays: NET_DAYS, discount: 0, description: `On your tab, due in ${NET_DAYS} days, collected from your debit mandate` });
-    const discounted = Math.round(listAmount * (1 - EARLY_PAY.discount));
+    const discounted = Math.round(listAmount * (1 - early.discount));
     options.push({
       option: "pay_in_10_discount",
       amount: discounted,
-      dueInDays: EARLY_PAY.days,
-      discount: EARLY_PAY.discount,
-      annualisedReturn: discountYield(EARLY_PAY.discount, EARLY_PAY.days, NET_DAYS),
-      description: `On your tab at ${EARLY_PAY.discount * 100}% off if collected in ${EARLY_PAY.days} days`,
+      dueInDays: early.days,
+      discount: early.discount,
+      annualisedReturn: discountYield(early.discount, early.days, NET_DAYS),
+      description: `On your tab at ${+(early.discount * 100).toFixed(2)}% off if collected in ${early.days} days`,
     });
   }
   return { productId, units, listAmount, options, notes };

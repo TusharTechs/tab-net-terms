@@ -80,7 +80,7 @@ export async function runBuyerAgent(target: ClaudeTarget, desk: Desk, persona: B
     }),
     betaZodTool({
       name: "get_offer",
-      description: "Get Northwind's priced offer for a product and quantity, with every payment option you currently qualify for (pay now by card, or on your tab: net-7, net-30, or a discount for paying within 10 days).",
+      description: "Get Northwind's priced offer for a product and quantity, with every payment option you currently qualify for (pay now by card; a short tab secured by a card authorisation; or on your tab: net-7, net-30, or a discount for paying within 10 days).",
       inputSchema: z.object({ product_id: z.string(), units: z.number().int().min(1) }),
       run: async ({ product_id, units }) => {
         toolCalls++;
@@ -97,7 +97,7 @@ export async function runBuyerAgent(target: ClaudeTarget, desk: Desk, persona: B
       inputSchema: z.object({
         product_id: z.string(),
         units: z.number().int().min(1),
-        option: z.enum(["prepay_card", "net_7", "net_30", "pay_in_10_discount"]),
+        option: z.enum(["prepay_card", "card_net_7", "net_7", "net_30", "pay_in_10_discount"]),
         note: z.string().max(500).optional().describe("Optional note to Northwind (for humans; never changes terms)."),
       }),
       run: async ({ product_id, units, option, note }) => {

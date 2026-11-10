@@ -59,6 +59,15 @@ export function checkBooks(state: DeskState): Check[] {
     const unlogged = tab.filter((o) => o.collectedBy && !o.collectedBy.startsWith("credit:") && !logged.has(o.id)).map((o) => o.id);
     out.push({ name: `${b.id}: every collected order is traceable`, ok: unlogged.length === 0, detail: unlogged.length ? `no collection logged for ${unlogged.join(", ")}` : "all traceable" });
 
+    // Card-secured tabs: what was captured is exactly what was owed after credits, never above the authorisation.
+    const card = b.orders.filter((o) => o.route === "CARD_AUTH");
+    if (card.length) {
+      const bad = card.filter((o) => o.collectedBy && (o.card?.captured !== dueOn(o) || (o.card?.captured ?? 0) > (o.card?.authorised ?? 0))).map((o) => o.id);
+      const captured = card.reduce((s, o) => s + (o.card?.captured ?? 0), 0);
+      const authorised = card.reduce((s, o) => s + (o.card?.authorised ?? 0), 0);
+      out.push({ name: `${b.id}: card captures = owed after credits, within the authorisation`, ok: bad.length === 0, detail: bad.length ? `mismatch on ${bad.join(", ")}` : `${usd(captured)} captured of ${usd(authorised)} authorised on ${card.length} order(s)`, ...(bad.length ? { ids: bad } : {}) });
+    }
+
     // Statement refusals are evidence: each recorded one carries its chain tx.
     for (const st of b.statements ?? []) {
       const missing = st.refusals.filter((r) => !r.tx).length;
@@ -72,6 +81,8 @@ export interface LiveDeps {
   receiptStatus(tx: string): Promise<string | null>;
   conversionStatus?(id: string): Promise<string>;
   journalEntry?(id: string): Promise<{ total_debit_atoms: number; total_credit_atoms: number } | null>;
+  /** Airwallex payment intent: amount captured, in dollars. */
+  paymentIntent?(id: string): Promise<{ status: string; captured_amount?: number }>;
 }
 
 /** Live checks: every collection tx succeeded on chain; settlements and journal entries exist and balance. */
@@ -88,6 +99,17 @@ export async function checkLive(state: DeskState, deps: LiveDeps): Promise<Check
     const conv = deps.conversionStatus ? await deps.conversionStatus(String(e.data.conversionId)) : "unchecked";
     out.push({ name: `settlement of ${tx.slice(0, 10)}…`, ok: known && (conv === "SETTLED" || conv === "unchecked"), detail: `${known ? "matches a collection" : "NO matching collection"}; conversion ${conv}`, ids: [String(e.data.depositId), String(e.data.conversionId)] });
   }
+  // Every card capture the desk counted matches what Airwallex says was captured.
+  if (deps.paymentIntent) {
+    const byPi = new Map<string, number>();
+    for (const b of Object.values(state.buyers)) for (const o of b.orders) if (o.card?.captured !== undefined) byPi.set(o.card.paymentIntentId, (byPi.get(o.card.paymentIntentId) ?? 0) + o.card.captured);
+    for (const [pi, desk] of byPi) {
+      const r = await deps.paymentIntent(pi);
+      const awx = Math.round(Number(r.captured_amount ?? 0) * 100);
+      out.push({ name: `card capture ${pi}`, ok: r.status === "SUCCEEDED" && awx === desk, detail: `Airwallex captured ${usd(awx)} (${r.status}); desk counted ${usd(desk)}`, ids: [pi] });
+    }
+  }
+
   for (const e of state.events.filter((x) => x.type === "books" && x.data.journalEntryId)) {
     const je = deps.journalEntry ? await deps.journalEntry(String(e.data.journalEntryId)) : null;
     const tx = String(e.data.metalTx ?? "");

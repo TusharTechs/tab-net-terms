@@ -14,11 +14,13 @@ import { AirwallexClient } from "../src/airwallex/client.js";
 import { bookCollection, RoutedBooks, StandinBooks, T0Books, T0Mcp } from "../src/books/books.js";
 import { claude } from "../src/claude/client.js";
 import { config } from "../src/config.js";
-import { batchPaymentId, Desk, type DeskState, dueOn, fileStore } from "../src/desk/desk.js";
+import { batchPaymentId, Desk, type DeskState, dueOn, fileStore, policyChangeText } from "../src/desk/desk.js";
+import { AIRI_TEST_CARD, BUYERS, NORTHWIND } from "../src/desk/northwind.js";
 import { decideDispute } from "../src/disputes/decide.js";
 import { readDispute } from "../src/disputes/reader.js";
 import { FileLedger } from "../src/ledger/settlements.js";
 import { MetalAgent, usdzBalance } from "../src/metal/agent.js";
+import { applyRails, compileGoals, signPolicy, verifyPolicy } from "../src/policy/policy.js";
 import { checkBooks, checkLive } from "../src/proof/checker.js";
 import { settleCollection } from "../src/settlement/bridge.js";
 import { authoriseCardStatement, captureUndisputed, openCardStatement } from "../src/visa/card-statement.js";
@@ -31,13 +33,12 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const pause = () => sleep(PACE);
 const run = `r${Date.now().toString(36)}`;
 
-const SUPPLIER = "0x6C7578104c945e6A0b21eD9f022abE197a40B6B4";
-const ISSUER = { key: "keys/supplier-issuer.json", pub: "keys/supplier-issuer.public.json" };
-const ACME = { account: "0x4d0a5161AbA00FB71397675a1919163d6e7cEd33", owner: "keys/buyer-owner.json" };
-const GLOBEX_OWNER = "keys/globex-owner.json";
-const USD_GLOBAL_ACCOUNT = "7d7f991a-1360-4b31-9437-fa2167a9ab96";
-const T0_ACME_CUSTOMER = "t0_customer_prod_e9882b26f7979f04d28e";
-const AIRI_TEST_CARD = "6a54bf19-f0f0-49ae-b2ef-c593de41577a";
+const SUPPLIER = NORTHWIND.supplier;
+const ISSUER = NORTHWIND.issuer;
+const ACME = BUYERS.acme;
+const GLOBEX_OWNER = BUYERS.globex.owner;
+const USD_GLOBAL_ACCOUNT = NORTHWIND.usdGlobalAccount;
+const T0_ACME_CUSTOMER = BUYERS.acme.t0Customer;
 
 // ── wiring ───────────────────────────────────────────────────────────────────
 const DESK_FILE = "data/desk-demo.json";
@@ -53,7 +54,7 @@ const books = t0Books ? new RoutedBooks({ acme: t0Books }, standin) : standin;
 const metal = new MetalAgent();
 const desk = new Desk(state, {
   supplierPayee: SUPPLIER,
-  refusalKey: "keys/supplier-wallet.json",
+  refusalKey: NORTHWIND.supplierWalletKey,
   metal,
   balanceOf: (a) => usdzBalance(cfg.METAL_RPC_URL!, a),
   books,
@@ -117,6 +118,25 @@ await desk.evaluate("acme");
 tail();
 await pause();
 
+// ── 1b. The CFO types goals; code bounds them; a signed policy re-prices the book ────
+say("1b · Northwind's CFO types this quarter's goals; Claude compiles them, code checks them, the desk dry-runs them");
+const CFO_GOALS = "Cash is tight this quarter, so we want to be paid faster: offer 3% off to any buyer who pays within 10 days. Keep net-30 for buyers with a clean record, but no single buyer above $350 on credit. And give our best customers net-90.";
+const current = { credit: desk.creditPolicy(), terms: desk.salesTerms() };
+const compiled = await compileGoals(target, CFO_GOALS, current);
+const railed = applyRails(current, compiled.proposal);
+const diff = await desk.dryRunPolicy(railed.policy);
+for (const c of railed.accepted) console.log(`  ✔ ${policyChangeText(c)}${c.cfoWords ? `  ← "${c.cfoWords}"` : ""}`);
+for (const c of railed.rejected) console.log(`  ✘ ${policyChangeText(c)}: ${c.why}`);
+for (const n of compiled.proposal.notCompiled) console.log(`  ∅ not expressible: ${n.goal}`);
+for (const d of diff) console.log(`  dry run · ${d.name}: ${d.before.terms} $${(d.before.limit / 100).toFixed(2)} → ${d.after.terms} $${(d.after.limit / 100).toFixed(2)}${d.wouldCollect ? ` · would collect $${(d.wouldCollect / 100).toFixed(2)} now` : ""}`);
+const signed = signPolicy({ policy: railed.policy, goals: CFO_GOALS, summary: compiled.proposal.summary, accepted: railed.accepted, rejected: railed.rejected, notCompiled: compiled.proposal.notCompiled, model: compiled.model }, ISSUER.key);
+// Someone edits the signed policy to 5% off before it reaches the desk: refused.
+const edited = { ...signed, policy: { ...signed.policy, terms: { ...signed.policy.terms, earlyPay: { ...signed.policy.terms.earlyPay, discount: 0.05 } } } };
+await desk.applyPolicy(edited, verifyPolicy(edited, ISSUER.pub), diff);
+await desk.applyPolicy(signed, verifyPolicy(signed, ISSUER.pub), diff);
+tail();
+await pause();
+
 // ── 2. Acme's agent shops ────────────────────────────────────────────────────
 say("2 · Acme's agent (Claude) shops and chooses how to pay");
 const acmeRun = await runBuyerAgent(target, desk, ACME_AGENT);
@@ -124,28 +144,47 @@ tail();
 console.log(`  (${acmeRun.toolCalls} tool calls, ${acmeRun.orders.length} orders)`);
 await pause();
 
-// ── 3. Globex: clean books, but no Visa-verified payment yet → card first → earns terms ─
-say("3 · Globex's books are clean, but it has no Visa-verified payment with Northwind yet: card only until one lands");
+// ── 3. Globex: no history with us → a card-secured tab → only the undisputed amount captured → earns terms ─
+say("3 · Globex is new to Northwind: no Metal terms yet, but a Visa authorisation can secure a short tab");
 await bindLine("globex", globexAcct.account, GLOBEX_OWNER, 9_000);
-const g1 = await runBuyerAgent(target, desk, GLOBEX_AGENT);
+const g1 = await runBuyerAgent(target, desk, { ...GLOBEX_AGENT, goal: "We're launching a pricing product: buy 5,000 rows of FX tick backfill now. Pay as late as Northwind allows." });
 tail();
 console.log(`  (first Globex run: ${g1.toolCalls} tool calls)`);
-const cardOrder = state.buyers.globex!.orders.find((o) => o.route === "PREPAY_VIC");
-if (cardOrder && LIVE_VIC) {
-  const st = await openCardStatement(awx, { statementId: `STM-${run}-G1`, hash: batchPaymentId("globex", [cardOrder]), lines: [{ name: cardOrder.description.replace(/[,:]/g, ""), amount: cardOrder.amount }], paymentMethodId: AIRI_TEST_CARD, buyerAgent: "Globex sourcing agent", merchantName: "Northwind Data", merchantUrl: "https://northwind.example" });
+const globexCard = state.buyers.globex!.orders.filter((o) => (o.route === "CARD_AUTH" && !o.card) || (o.route === "PREPAY_VIC" && !o.collectedBy));
+if (globexCard.length && LIVE_VIC) {
+  const secured = globexCard.every((o) => o.route === "CARD_AUTH");
+  const st = await openCardStatement(awx, { statementId: `STM-${run}-G1`, hash: batchPaymentId("globex", globexCard), lines: globexCard.map((o) => ({ name: o.description.replace(/[,:]/g, ""), amount: o.amount })), paymentMethodId: AIRI_TEST_CARD, buyerAgent: "Globex sourcing agent", merchantName: "Northwind Data", merchantUrl: "https://northwind.example" });
   console.log(`\n  ▶ APPROVE THE PASSKEY: ${st.passkeyUrl}\n`);
   const auth = await authoriseCardStatement(awx, st, `data/vic/${st.statementId}.cred.json`);
-  if (auth.ok) {
-    await captureUndisputed(awx, st, 0);
-    await desk.verifyVicPayment("globex", { paymentIntentId: st.paymentIntentId, airiMandateId: st.airiMandateId, statementId: st.statementId, statementHash: st.hash });
+  const ids = { paymentIntentId: st.paymentIntentId, airiMandateId: st.airiMandateId, statementId: st.statementId, statementHash: st.hash };
+  if (auth.ok && secured) {
+    await desk.recordCardAuthorisation("globex", globexCard.map((o) => o.id), ids);
     tail();
     await pause();
-    say("3b · Verified: Globex now qualifies for terms, and its agent re-plans");
-    await runBuyerAgent(target, desk, { ...GLOBEX_AGENT, goal: "You've paid for the backfill by card. Now buy 2,000 market-data queries, on terms if Northwind offers them." });
+    say("3b · Before the due date, Northwind's delivery QA flags one 1,000-row batch as stale: a credit note");
+    const backfill = globexCard.find((o) => o.productId === "fx-backfill") ?? globexCard[0]!;
+    // One batch of the order, at what Globex was actually charged for it.
+    desk.applyCredit("globex", backfill.id, Math.round(backfill.amount / (backfill.units ?? 1)), "delivery QA: one 1,000-row batch had stale ticks");
+    tail();
+    await pause();
+    say("3c · Due (compressed for the video): capture only the undisputed amount; the rest of the hold lapses");
+    const disputed = globexCard.reduce((s, o) => s + (o.credited ?? 0), 0);
+    await captureUndisputed(awx, st, disputed);
+    await desk.verifyCardCapture("globex", st.paymentIntentId);
+    tail();
+  } else if (auth.ok) {
+    await captureUndisputed(awx, st, 0);
+    await desk.verifyVicPayment("globex", ids);
     tail();
   }
-} else if (cardOrder) {
-  console.log("  (LIVE_VIC not set: Globex's card payment is skipped, so it stays prepay-only)");
+  if (auth.ok) {
+    await pause();
+    say("3d · A settled Visa payment on record: Globex now qualifies for Metal terms, and its agent re-plans");
+    await runBuyerAgent(target, desk, { ...GLOBEX_AGENT, goal: "The backfill is paid for. Now buy 2,000 market-data queries, on the best terms Northwind offers." });
+    tail();
+  }
+} else if (globexCard.length) {
+  console.log("  (LIVE_VIC not set: no card authorisation, so Globex's card order stays unpaid and Globex stays without terms)");
 }
 await pause();
 
@@ -225,17 +264,25 @@ if (globex.orders.some((o) => o.route === "ON_TAB" && !o.collectedBy)) {
 }
 
 // ── 8. Settle into Airwallex and book in T:0 ────────────────────────────────────
-if (statementTx) {
-  say("8 · Settle the statement into Airwallex, convert to SGD, book it in T:0");
-  const out = await settleCollection(awx, new FileLedger("data/settlements.json"), USD_GLOBAL_ACCOUNT, { metalTxHash: statementTx, amount: statementTotal, payerName: "Acme procurement agent" }, async () => false);
+// Every Metal collection in this run is settled: Acme's statement and Globex's tab.
+const toSettle = state.events
+  .filter((e) => e.type === "collect" && e.data.tx && Number(e.data.amount) > 0)
+  .map((e) => ({ buyerId: e.buyerId, tx: String(e.data.tx), amount: Number(e.data.amount) }))
+  .filter((c, i, all) => all.findIndex((x) => x.tx === c.tx) === i);
+if (toSettle.length) say("8 · Settle every collection into Airwallex, convert to SGD, book in T:0 where the customer lives there");
+for (const c of toSettle) {
+  const name = state.buyers[c.buyerId]!.name;
+  const out = await settleCollection(awx, new FileLedger("data/settlements.json"), USD_GLOBAL_ACCOUNT, { metalTxHash: c.tx, amount: c.amount, payerName: name }, async () => false);
   if (out.kind === "converted") {
-    desk.recordSettlement("acme", `deposited $${(statementTotal / 100).toFixed(2)} into Airwallex, kept $${(out.reserved / 100).toFixed(2)} refund reserve, converted ${out.quote.sell_amount} USD → ${out.quote.buy_amount} SGD`, { depositId: out.depositId, quoteId: out.quote.quote_id, conversionId: out.conversionId, rate: out.quote.client_rate, metalTx: statementTx });
-    if (t0) {
-      const je = await bookCollection(t0, { customerExternalId: T0_ACME_CUSTOMER, amount: statementTotal, currency: "USD", metalTx: statementTx, depositId: out.depositId, conversionId: out.conversionId, date: new Date() });
-      desk.recordBooks("acme", `booked in T:0${je.jeNumber ? ` as ${je.jeNumber}` : ""}: debit Airwallex cash, credit A/R $${(statementTotal / 100).toFixed(2)}`, { source: "t0", journalEntryId: je.journalEntryId, metalTx: statementTx });
+    desk.recordSettlement(c.buyerId, `deposited $${(c.amount / 100).toFixed(2)} into Airwallex, kept $${(out.reserved / 100).toFixed(2)} refund reserve, converted ${out.quote.sell_amount} USD → ${out.quote.buy_amount} SGD`, { depositId: out.depositId, quoteId: out.quote.quote_id, conversionId: out.conversionId, rate: out.quote.client_rate, metalTx: c.tx });
+    if (t0 && c.buyerId === "acme") {
+      const je = await bookCollection(t0, { customerExternalId: T0_ACME_CUSTOMER, amount: c.amount, currency: "USD", metalTx: c.tx, depositId: out.depositId, conversionId: out.conversionId, date: new Date() });
+      desk.recordBooks("acme", `booked in T:0${je.jeNumber ? ` as ${je.jeNumber}` : ""}: debit Airwallex cash, credit A/R $${(c.amount / 100).toFixed(2)}`, { source: "t0", journalEntryId: je.journalEntryId, metalTx: c.tx });
+    } else if (t0) {
+      desk.recordBooks(c.buyerId, `not booked in T:0: ${name} has stand-in books (no matching T:0 customer, and this key cannot create one)`, { source: "standin", metalTx: c.tx });
     }
   } else {
-    desk.recordSettlement("acme", `settlement: ${out.kind}${"reason" in out ? ` (${out.reason})` : ""}`, {});
+    desk.recordSettlement(c.buyerId, `settlement: ${out.kind}${"reason" in out ? ` (${out.reason})` : ""}`, {});
   }
   tail();
   await pause();
@@ -250,6 +297,7 @@ const live = await checkLive(state, {
     return r.result?.status ?? null;
   },
   conversionStatus: async (id) => (await awx.get<{ status: string }>(`/fx/conversions/${id}`)).status,
+  paymentIntent: (id) => awx.get<{ status: string; captured_amount?: number }>(`/pa/payment_intents/${id}`),
   ...(t0 ? { journalEntry: async (id: string) => t0.call<{ total_debit_atoms: number; total_credit_atoms: number }>("get_one_journal_entry", { journal_entry_id: id }) } : {}),
 });
 const checks = [...checkBooks(state), ...live];

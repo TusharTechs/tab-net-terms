@@ -30,6 +30,8 @@ export interface OrderEvidence {
   proof: string;
   /** Amount already credited on this order. */
   credited: Cents;
+  /** What the order was actually charged (after any early-pay discount). Defaults to unitPrice × units. */
+  charged?: Cents;
 }
 
 export type Finding =
@@ -53,6 +55,10 @@ export function decideDispute(claims: Claim[], orders: Map<string, OrderEvidence
     }
     for (const id of c.orderIds) {
       const o = orders.get(id);
+      // Credits are priced at what the buyer was actually charged per unit, never at list.
+      const charged = o ? (o.charged ?? o.unitPrice * o.units) : 0;
+      const perUnit = o ? charged / o.units : 0;
+      const centsText = (c: number) => `${+c.toFixed(2)}¢`;
       if (!o) {
         findings.push({ claim: c.type, orderId: id, verdict: "escalate", reason: `no order ${id} on record` });
         continue;
@@ -62,19 +68,19 @@ export function decideDispute(claims: Claim[], orders: Map<string, OrderEvidence
           claim: c.type,
           orderId: id,
           verdict: "upheld_for_supplier",
-          reason: c.type === "price_not_agreed" ? `ordered on ${o.priceRoute} at ${o.unitPrice}¢/unit × ${o.units}` : `buyer agent placed it (${o.units} units on ${o.priceRoute})`,
+          reason: c.type === "price_not_agreed" ? `ordered on ${o.priceRoute} at ${o.unitPrice}¢/unit list × ${o.units}, charged $${(charged / 100).toFixed(2)}` : `buyer agent placed it (${o.units} units on ${o.priceRoute})`,
           proof: o.proof,
         });
         continue;
       }
       // data_quality: credit only units our own QA flagged, never more than the customer claims, never twice.
-      const alreadyCreditedUnits = Math.floor((o.credited + (creditedHere.get(id) ?? 0)) / o.unitPrice);
+      const alreadyCreditedUnits = Math.floor((o.credited + (creditedHere.get(id) ?? 0)) / perUnit + 1e-9);
       const staleLeft = Math.max(0, o.staleUnits - alreadyCreditedUnits);
       const units = Math.min(c.units ?? staleLeft, staleLeft);
-      const amount = units * o.unitPrice;
+      const amount = Math.round(units * perUnit);
       if (amount > 0) {
         creditedHere.set(id, (creditedHere.get(id) ?? 0) + amount);
-        findings.push({ claim: c.type, orderId: id, verdict: "credit", amount, reason: `${units} stale unit(s) confirmed by delivery QA × ${o.unitPrice}¢` });
+        findings.push({ claim: c.type, orderId: id, verdict: "credit", amount, reason: `${units} stale unit(s) confirmed by delivery QA × ${centsText(perUnit)} charged per unit` });
       } else {
         findings.push({ claim: c.type, orderId: id, verdict: "upheld_for_supplier", reason: o.staleUnits === 0 ? "delivery QA flagged no stale units" : "already credited", proof: o.proof });
       }
