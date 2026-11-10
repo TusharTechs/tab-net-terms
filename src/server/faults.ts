@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { AirwallexClient } from "../airwallex/client.js";
+import { payoutsOf, payVendorBill } from "../payout/vendor.js";
 import { type Books, RoutedBooks, StandinBooks, T0Books, T0Mcp } from "../books/books.js";
 import { config } from "../config.js";
 import { Desk, type DeskDeps, type DeskState, fileStore } from "../desk/desk.js";
@@ -19,11 +20,14 @@ export const FAULTS = {
   "fresh-id": "collect it again under a fresh payment id",
   overcharge: "collect $1 more than the statement",
   crash: "kill the desk mid-pull on the credit line, then restart it",
+  "pay-again": "pay the vendor bill again",
 } as const;
 export type Fault = keyof typeof FAULTS;
 
 /** The live rails a fault runs against. Tests pass fakes; the server uses Metal testnet, Airwallex and T:0. */
 export interface FaultRails {
+  /** Airwallex, for the vendor-payout fault. */
+  awx?: AirwallexClient;
   metal: DeskDeps["metal"];
   books: Books;
   balanceOf(address: string): Promise<number>;
@@ -42,6 +46,7 @@ export async function liveRails(): Promise<FaultRails> {
   const t0Books = t0 ? new T0Books(t0, { acme: BUYERS.acme.t0Customer }) : undefined;
   if (t0Books) await t0Books.refresh();
   return {
+    awx,
     metal: new MetalAgent(),
     books: t0Books ? new RoutedBooks({ acme: t0Books }, standin) : standin,
     balanceOf: (a) => usdzBalance(rpc, a),
@@ -55,6 +60,7 @@ export async function liveRails(): Promise<FaultRails> {
         token: USDZ,
         conversionStatus: async (id) => (await awx.get<{ status: string }>(`/fx/conversions/${id}`)).status,
         paymentIntent: (id) => awx.get<{ status: string; captured_amount?: number }>(`/pa/payment_intents/${id}`),
+        transfer: (id) => awx.get<{ status: string; source_amount: number; transfer_amount: number }>(`/transfers/${id}`),
         ...(t0 ? { journalEntry: (id: string) => t0.call<{ total_debit_atoms: number; total_credit_atoms: number }>("get_one_journal_entry", { journal_entry_id: id }) } : {}),
       }),
   };
@@ -86,11 +92,34 @@ async function prove(desk: Desk, rails: FaultRails, summary: string): Promise<nu
 
 export async function runFault(fault: Fault, deskFile: string, rails?: FaultRails): Promise<{ ok: boolean; message: string }> {
   const r = rails ?? (await liveRails());
+  if (fault === "pay-again") return runPayAgain(deskFile, r);
   return fault === "crash" ? runCrash(deskFile, r) : runStatementFault(fault, deskFile, r);
 }
 
 /** Attacks the last collected statement: its own single-use mandate. */
-async function runStatementFault(fault: Exclude<Fault, "crash">, deskFile: string, rails: FaultRails) {
+/**
+ * Pays the last paid vendor bill again. The desk's own record refuses it first; then the same request
+ * goes to Airwallex anyway, which answers with the original transfer. Nothing new is sent.
+ */
+async function runPayAgain(deskFile: string, rails: FaultRails) {
+  const state = load(deskFile);
+  const last = state.events.filter((e) => e.type === "payout").at(-1);
+  if (!last) return { ok: false, message: "no vendor payout to repeat yet: run the demo first" };
+  const desk = deskOn(state, deskFile, rails);
+  const bill = { id: String(last.data.billId), number: String(last.data.billNumber), vendorId: "", vendorName: String(last.data.vendor), currency: String(last.data.currency), amount: Number(last.data.amount), dueDate: "" };
+  const { paidBillIds } = payoutsOf(state);
+  const lockHolds = paidBillIds.has(bill.id);
+  desk.recordPayoutHeld({ billId: bill.id, billNumber: bill.number, vendor: bill.vendorName, currency: bill.currency, amount: bill.amount, verdict: "already_paid", reason: `already paid by Airwallex transfer ${String(last.data.transferId).slice(0, 8)}…: the duplicate lock refuses it` });
+  let airwallex = "not asked (no Airwallex client)";
+  if (rails.awx) {
+    const again = await payVendorBill(rails.awx, { bill, beneficiaryId: "unused-when-found", requestId: String(last.data.requestId), simulate: false });
+    airwallex = again.alreadyDone && again.transferId === last.data.transferId ? `Airwallex answered with the original transfer ${again.transferId.slice(0, 8)}…: nothing new was sent` : `Airwallex created ${again.transferId}`;
+  }
+  const breaks = await prove(desk, rails, `after "${FAULTS["pay-again"]}": the desk's lock refused bill ${bill.number}; ${airwallex}`);
+  return { ok: lockHolds && breaks === 0 && airwallex.includes("nothing new"), message: `the desk's lock refused bill ${bill.number}; ${airwallex}` };
+}
+
+async function runStatementFault(fault: Exclude<Fault, "crash" | "pay-again">, deskFile: string, rails: FaultRails) {
   const state = load(deskFile);
   const target = Object.values(state.buyers)
     .flatMap((b) => (b.statements ?? []).filter((s) => s.status === "collected").map((s) => ({ b, s })))

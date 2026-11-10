@@ -97,6 +97,8 @@ export const T0_GL = {
   cash: "glacct_prod_rhvrdWJ9CvupsH9V",
   /** 12100 "A/R - Customers" */
   receivable: "glacct_prod_OyqxStjVO6dHgLrK",
+  /** 21110 "A/P - Vendors" */
+  payable: "glacct_prod_4rlsPQbo9OX2y39J",
 };
 
 /**

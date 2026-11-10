@@ -195,6 +195,8 @@ dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; overflow-
 .t-agent { color: var(--claude); background: color-mix(in srgb, var(--claude) 14%, transparent); }
 .t-policy { color: var(--accent-ink); background: var(--accent); }
 .t-books { color: var(--t0); background: var(--info-bg); }
+.t-payout { color: var(--awx); background: color-mix(in srgb, var(--awx) 14%, transparent); }
+.g-grid > .g-card:last-child:nth-child(odd) { grid-column: 1 / -1; }
 .t-decision, .t-order { color: var(--info); background: var(--info-bg); }
 .t-proof { color: var(--bg); background: var(--ink); }
 

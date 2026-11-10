@@ -104,7 +104,7 @@ export interface DeskEvent {
   seq: number;
   at: string;
   buyerId: string;
-  type: "order" | "decision" | "collect" | "collect_refused" | "escalate" | "credit" | "dispute" | "vic" | "mandate" | "books" | "settle" | "agent" | "refused" | "statement" | "proof" | "policy" | "scene";
+  type: "order" | "decision" | "collect" | "collect_refused" | "escalate" | "credit" | "dispute" | "vic" | "mandate" | "books" | "settle" | "agent" | "refused" | "statement" | "proof" | "policy" | "scene" | "payout";
   summary: string;
   data: Record<string, unknown>;
 }
@@ -407,6 +407,20 @@ export class Desk {
   }
 
   /** Records the result of the "every dollar proven" checks. */
+  /** A vendor bill paid by an Airwallex transfer funded from proven SGD. */
+  recordPayout(p: { billId: string; billNumber: string; vendor: string; currency: string; amount: Cents; sgdCents: Cents; transferId: string; shortRef: string; status: string; requestId: string; reason: string }) {
+    const money = `${p.currency} ${(p.amount / 100).toFixed(2)}`;
+    this.emit("desk", "payout", `paid ${p.vendor} bill ${p.billNumber} (${money}) by Airwallex transfer${p.shortRef ? ` ${p.shortRef}` : ""}, SGD ${(p.sgdCents / 100).toFixed(2)} from proven collections · ${p.status}`, { ...p, transferStatus: p.status });
+    this.deps.persist?.(this.state);
+  }
+
+  /** A vendor bill the desk did not pay: it goes to a person, or the duplicate lock refused it. */
+  recordPayoutHeld(p: { billId: string; billNumber: string; vendor: string; currency: string; amount: Cents; verdict: "person" | "already_paid"; reason: string }) {
+    const money = `${p.currency} ${(p.amount / 100).toFixed(2)}`;
+    this.emit("desk", p.verdict === "already_paid" ? "refused" : "escalate", `${p.vendor} bill ${p.billNumber} (${money}) not paid: ${p.reason}`, { ...p, payoutHeld: true });
+    this.deps.persist?.(this.state);
+  }
+
   /** A demo scene starts: the screen and the replay show it as a caption and group the log by it. */
   recordScene(key: string, title: string, run?: string) {
     this.emit("desk", "scene", title, { key, title, ...(run ? { run } : {}) });

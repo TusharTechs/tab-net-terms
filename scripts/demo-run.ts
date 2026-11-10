@@ -20,6 +20,7 @@ import { decideDispute } from "../src/disputes/decide.js";
 import { readDispute } from "../src/disputes/reader.js";
 import { FileLedger } from "../src/ledger/settlements.js";
 import { findTransfer, MetalAgent, txReceipt, USDZ, usdzBalance } from "../src/metal/agent.js";
+import { bookPayout, decidePayouts, openVendorBills, payoutsOf, payVendorBill, provenSgdOf, quoteSgdCost } from "../src/payout/vendor.js";
 import { applyRails, compileGoals, signPolicy } from "../src/policy/policy.js";
 import { checkBooks, checkLive } from "../src/proof/checker.js";
 import { settleCollection } from "../src/settlement/bridge.js";
@@ -301,7 +302,7 @@ for (const c of toSettle) {
   const name = state.buyers[c.buyerId]!.name;
   const out = await settleCollection(awx, new FileLedger("data/settlements.json"), USD_GLOBAL_ACCOUNT, { metalTxHash: c.tx, amount: c.amount, payerName: name }, async () => false);
   if (out.kind === "converted") {
-    desk.recordSettlement(c.buyerId, `deposited $${(c.amount / 100).toFixed(2)} into Airwallex, kept $${(out.reserved / 100).toFixed(2)} refund reserve, converted ${out.quote.sell_amount} USD → ${out.quote.buy_amount} SGD`, { depositId: out.depositId, quoteId: out.quote.quote_id, conversionId: out.conversionId, rate: out.quote.client_rate, metalTx: c.tx });
+    desk.recordSettlement(c.buyerId, `deposited $${(c.amount / 100).toFixed(2)} into Airwallex, kept $${(out.reserved / 100).toFixed(2)} refund reserve, converted ${out.quote.sell_amount} USD → ${out.quote.buy_amount} SGD`, { depositId: out.depositId, quoteId: out.quote.quote_id, conversionId: out.conversionId, rate: out.quote.client_rate, metalTx: c.tx, sgdCents: Math.round(Number(out.quote.buy_amount) * 100) });
     if (t0 && c.buyerId === "acme") {
       const je = await bookCollection(t0, { customerExternalId: T0_ACME_CUSTOMER, amount: c.amount, currency: "USD", metalTx: c.tx, depositId: out.depositId, conversionId: out.conversionId, date: new Date() });
       desk.recordBooks("acme", `booked in T:0${je.jeNumber ? ` as ${je.jeNumber}` : ""}: debit Airwallex cash, credit A/R $${(c.amount / 100).toFixed(2)}`, { source: "t0", journalEntryId: je.journalEntryId, metalTx: c.tx });
@@ -310,6 +311,36 @@ for (const c of toSettle) {
     }
   } else {
     desk.recordSettlement(c.buyerId, `settlement: ${out.kind}${"reason" in out ? ` (${out.reason})` : ""}`, {});
+  }
+  tail();
+  await pause();
+}
+
+// ── 8b. Pay a vendor bill, once, only from proven money ─────────────────────────
+// Northwind keeps its treasury in SGD built only from proven collections. It reads its open vendor
+// bills from T:0; code pays the oldest one that proven money covers (keeping a floor back) and sends
+// the rest to a person. One Airwallex transfer, funded in SGD, paid in the bill's currency.
+if (t0) {
+  say("8b · Northwind pays a vendor bill from its T:0 books, once, only from the SGD this run proved");
+  const bills = await openVendorBills(t0);
+  const costs = new Map<string, number>();
+  for (const b of bills) costs.set(b.id, (await quoteSgdCost(awx, b.currency, b.amount)).sgdCents);
+  const done = payoutsOf(state);
+  const decisions = decidePayouts(bills, costs, { provenSgd: provenSgdOf(state), spentSgd: done.spentSgd, paidBillIds: done.paidBillIds });
+  const beneficiaries = existsSync("data/payout/beneficiaries.json") ? (JSON.parse(readFileSync("data/payout/beneficiaries.json", "utf8")) as Record<string, string>) : {};
+  for (const d of decisions) {
+    const b = d.bill;
+    const ben = beneficiaries[b.vendorId];
+    if (d.verdict === "pay" && ben) {
+      const paid = await payVendorBill(awx, { bill: b, beneficiaryId: ben, requestId: `tab-${run}-${b.id}`, simulate: true });
+      desk.recordPayout({ billId: b.id, billNumber: b.number, vendor: b.vendorName, currency: b.currency, amount: b.amount, sgdCents: paid.sgdCents, transferId: paid.transferId, shortRef: paid.shortRef, status: paid.status, requestId: paid.requestId, reason: d.reason });
+      const je = await bookPayout(t0, { bill: b, transferId: paid.transferId, shortRef: paid.shortRef, date: new Date() });
+      desk.recordBooks("desk", `booked in T:0${je.jeNumber ? ` as ${je.jeNumber}` : ""}: debit A/P - Vendors (${b.vendorName}), credit Airwallex cash ${b.currency} ${(b.amount / 100).toFixed(2)}`, { source: "t0", journalEntryId: je.journalEntryId, payoutTransferId: paid.transferId, amount: b.amount });
+    } else if (d.verdict === "pay") {
+      desk.recordPayoutHeld({ billId: b.id, billNumber: b.number, vendor: b.vendorName, currency: b.currency, amount: b.amount, verdict: "person", reason: "proven money covers it, but there are no bank details on file for this vendor: a person adds them" });
+    } else {
+      desk.recordPayoutHeld({ billId: b.id, billNumber: b.number, vendor: b.vendorName, currency: b.currency, amount: b.amount, verdict: d.verdict, reason: d.reason });
+    }
   }
   tail();
   await pause();
@@ -328,6 +359,7 @@ const live = await checkLive(state, {
   token: USDZ,
   conversionStatus: async (id) => (await awx.get<{ status: string }>(`/fx/conversions/${id}`)).status,
   paymentIntent: (id) => awx.get<{ status: string; captured_amount?: number }>(`/pa/payment_intents/${id}`),
+  transfer: (id) => awx.get<{ status: string; source_amount: number; transfer_amount: number }>(`/transfers/${id}`),
   ...(t0 ? { journalEntry: async (id: string) => t0.call<{ total_debit_atoms: number; total_credit_atoms: number }>("get_one_journal_entry", { journal_entry_id: id }) } : {}),
 });
 const checks = [...checkBooks(state), ...live];

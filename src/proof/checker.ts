@@ -91,6 +91,17 @@ export function checkBooks(state: DeskState): Check[] {
       if (st.refusals.length) out.push({ name: `${b.id}: statement ${st.id} refusals recorded on chain`, ok: missing === 0, detail: `${st.refusals.length} refusal(s), ${missing} without a chain record`, ids: st.refusals.flatMap((r) => (r.tx ? [r.tx] : [])) });
     }
   }
+  // Vendor payouts: no bill paid twice, and never more SGD than the run proved.
+  const payouts = state.events.filter((e) => e.type === "payout");
+  if (payouts.length) {
+    const billIds = payouts.map((e) => String(e.data.billId));
+    const twice = billIds.filter((id, i) => billIds.indexOf(id) !== i);
+    out.push({ name: "vendor bills: each paid once", ok: twice.length === 0, detail: twice.length ? `paid twice: ${twice.join(", ")}` : `${billIds.length} bill(s), each paid once`, ...(twice.length ? { ids: twice } : {}) });
+    let proven = 0;
+    for (const e of state.events) if (e.type === "settle" && e.data.conversionId) { const m = /→ ([\d.]+) SGD/.exec(e.summary); proven += Number(e.data.sgdCents ?? (m ? Math.round(Number(m[1]) * 100) : 0)); }
+    const spent = payouts.reduce((s2, e) => s2 + Number(e.data.sgdCents ?? 0), 0);
+    out.push({ name: "vendor payouts spent only proven money", ok: spent <= proven, detail: `SGD ${(spent / 100).toFixed(2)} paid out of SGD ${(proven / 100).toFixed(2)} converted from proven collections` });
+  }
   return out;
 }
 
@@ -109,6 +120,8 @@ export interface LiveDeps {
   token?: string;
   conversionStatus?(id: string): Promise<string>;
   journalEntry?(id: string): Promise<{ total_debit_atoms: number; total_credit_atoms: number } | null>;
+  /** Airwallex transfer: status and amounts, in major units. */
+  transfer?(id: string): Promise<{ status: string; source_amount: number; transfer_amount: number }>;
   /** Airwallex payment intent: amount captured, in dollars. */
   paymentIntent?(id: string): Promise<{ status: string; captured_amount?: number }>;
 }
@@ -159,6 +172,17 @@ export async function checkLive(state: DeskState, deps: LiveDeps): Promise<Check
     const conv = deps.conversionStatus ? await deps.conversionStatus(String(e.data.conversionId)) : "unchecked";
     out.push({ name: `settlement of ${tx.slice(0, 10)}…`, ok: known && (conv === "SETTLED" || conv === "unchecked"), detail: `${known ? "matches a collection" : "NO matching collection"}; conversion ${conv}`, ids: [String(e.data.depositId), String(e.data.conversionId)] });
   }
+  // Vendor payouts: each transfer is PAID in Airwallex, for exactly the bill, and spent the SGD recorded.
+  if (deps.transfer) {
+    for (const e of state.events.filter((x) => x.type === "payout")) {
+      const t = await deps.transfer(String(e.data.transferId));
+      const paid = Math.round(t.transfer_amount * 100);
+      const spent = Math.round(t.source_amount * 100);
+      const ok = t.status === "PAID" && paid === Number(e.data.amount) && spent === Number(e.data.sgdCents);
+      out.push({ name: `vendor payout ${e.data.billNumber}`, ok, detail: `Airwallex transfer ${t.status}: paid ${(paid / 100).toFixed(2)} ${e.data.currency} (bill ${(Number(e.data.amount) / 100).toFixed(2)}), spent SGD ${(spent / 100).toFixed(2)} (desk recorded ${(Number(e.data.sgdCents) / 100).toFixed(2)})`, ids: [String(e.data.transferId)] });
+    }
+  }
+
   // Every card capture the desk counted matches what Airwallex says was captured.
   if (deps.paymentIntent) {
     const byPi = new Map<string, number>();
@@ -172,6 +196,16 @@ export async function checkLive(state: DeskState, deps: LiveDeps): Promise<Check
 
   for (const e of state.events.filter((x) => x.type === "books" && x.data.journalEntryId)) {
     const je = deps.journalEntry ? await deps.journalEntry(String(e.data.journalEntryId)) : null;
+    if (e.data.payoutTransferId) {
+      // A payout's entry is tied to its Airwallex transfer and must equal the bill paid.
+      const payout = state.events.find((x) => x.type === "payout" && x.data.transferId === e.data.payoutTransferId);
+      const tied = Boolean(payout);
+      const want = Number(payout?.data.amount ?? -1);
+      const balanced = je !== null && je.total_debit_atoms === je.total_credit_atoms;
+      const equals = je !== null && je.total_debit_atoms === want;
+      out.push({ name: `T:0 journal ${e.data.journalEntryId}`, ok: tied && (!deps.journalEntry || (balanced && equals)), detail: `${tied ? "tied to a vendor payout" : "NOT tied to a payout"}${je ? `; balanced ${je.total_debit_atoms}/${je.total_credit_atoms}; ${equals ? "equals" : "DOES NOT equal"} the bill paid` : ""}`, ids: [String(e.data.journalEntryId)] });
+      continue;
+    }
     const tx = String(e.data.metalTx ?? "");
     // What that chain tx actually collected, in cents (USD journal entries carry 100 atoms per dollar).
     const collected = [...new Map(state.events.filter((x) => x.type === "collect" && x.data.tx === tx).map((x) => [x.data.tx, Number(x.data.amount ?? 0)])).values()].reduce((s, a) => s + a, 0);

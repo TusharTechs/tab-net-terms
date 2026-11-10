@@ -34,6 +34,20 @@ Re-checked after the run, outside the desk's own checker:
 - All three conversions read back SETTLED with the amounts above. T:0 JE-10 read back 18,624 / 18,624 and JE-11 2,425 / 2,425, lines 11410 (debit) and 12100 (credit, counterparty `t0_customer_prod_e9882b26f7979f04d28e`).
 - The applied policy's signature verifies under `keys/cfo-policy.public.json`; it holds `requireVicBeforeCredit: true`.
 
+## Vendor payout (scene 8b), run on a copy of this run's state
+
+`npx tsx scripts/pay-vendor.ts data/desk-payout-test.json` on a copy of `rmwavgb3a`'s state (same code as scene 8b):
+
+- Proven SGD: **351.68** (the three conversions above); floor kept back SGD 50.00; per-bill limit SGD 1,000.00.
+- T:0 open vendor bills (sandbox books, all USD): Slack Technologies INV-20250201-1234 $100.00 (due 2026-03-16), Atlassian $5,000.00, Dell $10,000.00, Hewlett-Packard $10,000.00, Dell Technologies $10,000.00.
+- **Paid:** the $100.00 Slack bill by Airwallex transfer `e75afb28-5ef0-4bd6-a088-8907e6ef17f8` (P261110-20KVBW6): LOCAL, funded SGD 128.94 → USD 100.00, reference INV-20250201-1234, to sandbox beneficiary `88dbd2c8-ca88-40d8-b112-83dfa5d0f9b7`; moved SCHEDULED → SENT → PAID with the sandbox simulation call; read back PAID.
+- **Booked:** T:0 JE-12 `je_prod_74eLxNGySYHPjUo6`: debit 21110 A/P - Vendors (counterparty Slack Technologies, Inc.), credit 11410 Payment Processor #1, 10,000 / 10,000.
+- **Held for a person:** the four other bills (SGD 6,447.24 to 12,894.47 each), over the per-bill limit.
+- Proof re-run: **25/25** (adds: each bill paid once; payouts spent only proven money, SGD 128.94 of 351.68; the transfer reads back PAID for exactly the bill and the SGD recorded; JE-12 tied to the payout, balanced, equal to the bill).
+- **Pay it again** (fault): the desk's lock refused the bill, then the same request id went to Airwallex, which answered with the original transfer. Transfers with that request id: 1 before, 1 after.
+
+Labelled: the vendor's bank details are sandbox test values; the T:0 bill stays "open" in T:0 (this key cannot update bills), so the duplicate lock is per demo run (the request id names the run and the bill).
+
 ## Live fault: kill the desk mid-pull on the credit line
 
 Run on a copy of this run's state (`data/desk-faults.json`, screen started with `ALLOW_FAULTS=1`), after Acme's balance was topped up to $150.06 (helper pull `0x94d53e14…40cb`):

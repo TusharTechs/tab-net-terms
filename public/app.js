@@ -38,10 +38,11 @@
     bot: "M12 8V4H8M6 8h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2ZM9 14h.01M15 14h.01",
     desk: "M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6",
     flag: "M4 22V4M4 4h13l-2 4 2 4H4",
+    send: "M22 2 11 13M22 2l-7 20-4-9-9-4z",
   };
   const svgIcon = (k) => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${ICON[k] || ICON.flag}"/></svg>`;
-  const TYPE_ICON = { collect: "dollar", mandate: "link", statement: "link", vic: "card", refused: "stop", collect_refused: "stop", agent: "spark", policy: "pen", books: "book", settle: "globe", decision: "gauge", order: "cart", credit: "minus", dispute: "msg", escalate: "user", proof: "shield" };
-  const TYPE_LABEL = { vic: "Visa", collect_refused: "pending", settle: "Airwallex", agent: "agent", policy: "CFO policy", books: "books", collect: "collected", refused: "refused", mandate: "mandate", statement: "statement" };
+  const TYPE_ICON = { collect: "dollar", mandate: "link", statement: "link", vic: "card", refused: "stop", collect_refused: "stop", agent: "spark", policy: "pen", books: "book", settle: "globe", decision: "gauge", order: "cart", credit: "minus", dispute: "msg", escalate: "user", proof: "shield", payout: "send" };
+  const TYPE_LABEL = { payout: "payout", vic: "Visa", collect_refused: "pending", settle: "Airwallex", agent: "agent", policy: "CFO policy", books: "books", collect: "collected", refused: "refused", mandate: "mandate", statement: "statement" };
 
   // ── scenes ─────────────────────────────────────────────────────────────
   // From "scene" events (new runs) or from the builder's log-derived tags (older runs).
@@ -69,7 +70,7 @@
   // ── state as of event i ────────────────────────────────────────────────
   function stateAt(i) {
     const buyers = Object.fromEntries(BUYERS.map((b) => [b.id, { ...b, decision: null, inputs: null, mandate: null, boundAfter: false, orders: new Map(), statements: new Map(), card: null, reached: new Set() }]));
-    const k = { terms: 0, collected: 0, refusedChain: 0, pulls: 0, refusals: 0, holds: 0, captured: 0, settled: 0, sgd: 0, journals: 0, proof: null };
+    const k = { terms: 0, collected: 0, refusedChain: 0, pulls: 0, refusals: 0, holds: 0, captured: 0, settled: 0, sgd: 0, journals: 0, proof: null, payouts: 0, payoutSgd: 0, held: 0 };
     const seenTx = new Set();
     for (const e of EVENTS.slice(0, i + 1)) {
       const d = e.data || {};
@@ -77,6 +78,8 @@
       if (e.type === "proof") { const c = d.checks || []; k.proof = { pass: c.filter((x) => x.ok).length, total: c.length }; }
       if (e.type === "settle" && d.conversionId) { k.settled++; const m = /→ ([\d.]+) SGD/.exec(e.summary); if (m) k.sgd += Number(m[1]); }
       if (e.type === "books" && d.journalEntryId) k.journals++;
+      if (e.type === "payout") { k.payouts++; k.payoutSgd += Number(d.sgdCents || 0); }
+      if (d.payoutHeld) k.held++;
       if (e.type === "refused" && d.tx) { k.refusedChain++; k.refusals++; }
       if (e.type === "collect" && d.tx && !seenTx.has(d.tx)) { seenTx.add(d.tx); k.collected += Number(d.amount || 0); k.pulls++; }
       if (!b) continue;
@@ -122,6 +125,7 @@
     cfo: { x: 565, y: 46, w: 160, t: "CFO policy", s: "signed goals", c: "--cfo", ic: "pen" },
     t0: { x: 800, y: 96, w: 160, t: "T:0 books", s: "journal entries", c: "--t0", ic: "book" },
     awx: { x: 800, y: 214, w: 160, t: "Airwallex", s: "settle · USD → SGD", c: "--awx", ic: "globe" },
+    vendor: { x: 800, y: 300, w: 160, t: "Vendor", s: "bill paid once", c: "--awx", ic: "send" },
   };
   const EDGES = {
     "b-m": { d: "M175 150 L255 150" },
@@ -134,6 +138,7 @@
     "c-b": { d: "M255 46 C 160 46, 112 80, 104 124", dashed: true },
     "c-d": { d: "M415 52 C 480 58, 515 92, 530 124", dashed: true },
     "f-d": { d: "M565 72 L565 124" },
+    "a-v": { d: "M800 240 L800 274" },
   };
   const rails = $("rails");
   let railSvg = null;
@@ -147,7 +152,7 @@
         <text class="t" x="${n.x - n.w / 2 + 42}" y="${n.y - 2}">${n.t}</text>
         <text class="s" x="${n.x - n.w / 2 + 42}" y="${n.y + 14}">${n.s}</text>
       </g>`).join("");
-    rails.innerHTML = `<svg id="railsvg" viewBox="0 0 900 300" role="img" aria-label="How money and decisions move between the buyer agents, Metal, Visa via Airi, Northwind's desk, the CFO's policy, Airwallex and T:0">
+    rails.innerHTML = `<svg id="railsvg" viewBox="0 0 900 336" role="img" aria-label="How money and decisions move between the buyer agents, Metal, Visa via Airi, Northwind's desk, the CFO's policy, Airwallex and T:0">
       <g>${edges}</g><g>${nodes}</g><g id="fx"></g></svg>`;
     railSvg = $("railsvg");
   }
@@ -240,6 +245,7 @@
         if (/reconciled from the chain/.test(e.summary)) stamp("desk", "found on chain", "--metal");
         return;
       case "refused":
+        if (d.payoutHeld) { await fly("a-v", { color: "--bad", bounce: true, label: "again" }); flash("vendor", "--bad", true); stamp("vendor", "duplicate refused", "--bad"); return; }
         if (d.tx) { await fly("m-d", { color: "--bad", back: true, bounce: true, label: "pull" }); flash("metal", "--bad", true); stamp("metal", "refused on chain", "--bad"); return; }
         await fly("b-d", { color: "--bad", bounce: true, label: "off-menu" }); flash("desk", "--bad", true); stamp("desk", "refused", "--bad"); return;
       case "vic":
@@ -248,10 +254,11 @@
         await fly("v-a", { color: "--visa", label: "verified" }); flash("awx", "--visa"); return;
       case "credit": await fly("b-d", { color: "--warn", back: true, label: `−${amt}` }); return;
       case "dispute": flash("claude", "--claude"); await fly("c-d", { color: "--claude", label: "claims" }); flash("desk", "--warn"); return;
-      case "escalate": flash("desk", "--bad"); stamp("desk", "to a person", "--bad"); return sleep(200);
+      case "escalate": if (d.payoutHeld) { flash("vendor", "--warn"); stamp("vendor", "to a person", "--warn"); return sleep(200); } flash("desk", "--bad"); stamp("desk", "to a person", "--bad"); return sleep(200);
       case "settle": await fly("d-a", { color: "--awx", label: "→ SGD" }); flash("awx", "--awx"); return;
+      case "payout": await fly("a-v", { color: "--awx", label: d.amount != null ? `${d.currency} ${(Number(d.amount) / 100).toFixed(2)}` : "paid" }); flash("vendor", "--good"); stamp("vendor", "paid once", "--good"); return;
       case "books": if (d.journalEntryId) { await fly("a-t", { color: "--t0", label: "JE" }); flash("t0", "--t0"); } return;
-      case "proof": for (const n of ["buyers", "metal", "visa", "desk", "awx", "t0"]) { flash(n, "--good"); await sleep(90); } stamp("desk", "every dollar proven", "--good"); return;
+      case "proof": for (const n of ["buyers", "metal", "visa", "desk", "awx", "t0", "vendor"]) { flash(n, "--good"); await sleep(90); } stamp("desk", "every dollar proven", "--good"); return;
       default: return;
     }
   }
@@ -447,7 +454,7 @@
     const pr = $("k-proof");
     if (pr) pr.textContent = st.k.proof ? `${st.k.proof.pass}/${st.k.proof.total}` : "—";
     const stats = $("railstats");
-    if (stats) stats.innerHTML = `<span><i style="background:var(--metal)"></i>Metal: ${st.k.pulls} pull(s), ${st.k.refusals} refusal(s) recorded</span><span><i style="background:var(--visa)"></i>Visa: ${st.k.holds} hold(s), ${usd(st.k.captured)} captured</span><span><i style="background:var(--awx)"></i>Airwallex: ${st.k.settled} settled → ${st.k.sgd.toFixed(2)} SGD</span><span><i style="background:var(--t0)"></i>T:0: ${st.k.journals} journal entr${st.k.journals === 1 ? "y" : "ies"}</span>`;
+    if (stats) stats.innerHTML = `<span><i style="background:var(--metal)"></i>Metal: ${st.k.pulls} pull(s), ${st.k.refusals} refusal(s) recorded</span><span><i style="background:var(--visa)"></i>Visa: ${st.k.holds} hold(s), ${usd(st.k.captured)} captured</span><span><i style="background:var(--awx)"></i>Airwallex: ${st.k.settled} settled → ${st.k.sgd.toFixed(2)} SGD</span><span><i style="background:var(--t0)"></i>T:0: ${st.k.journals} journal entr${st.k.journals === 1 ? "y" : "ies"}</span><span><i style="background:var(--awx)"></i>Vendor: ${st.k.payouts} bill(s) paid from SGD ${(st.k.payoutSgd / 100).toFixed(2)}, ${st.k.held} held</span>`;
     const sk = idx >= 0 ? SCENES.of.get(EVENTS[idx].seq) : null;
     const s = sk ? SCENES.list.find((x) => x.key === sk) : null;
     const cap = $("caption");
@@ -614,6 +621,7 @@
     const cap = EVENTS.find((e) => e.type === "vic" && e.data && e.data.captured != null);
     const pols = EVENTS.filter((e) => e.type === "policy");
     const polRef = EVENTS.find((e) => e.type === "refused" && e.buyerId === "desk" && /policy/.test(e.summary));
+    const payoutEv = EVENTS.find((e) => e.type === "payout");
     const show = (key, label = "Show me in the run") => key && !LIVE ? `<button class="btn" type="button" data-action="scene" data-scene="${esc(key)}">${label} →</button>` : "";
     const cards = [
       {
@@ -644,6 +652,13 @@
         ids: `<span>live fault on a copy of this run:</span>${txLink("0xb6a6361fa19d0f6a32e64e145526bd866d3d946b36ad9cc6779ae5e19f03a355", "the one $20.00 pull")}`,
         test: "test/faults.test.ts · test/money-guards.test.ts", scene: null,
       },
+      ...(payoutEv ? [{
+        t: "Vendor bills paid once, from proven money", c: "--awx",
+        p: "Northwind pays its own vendors only from SGD that proven collections produced, keeping a floor back. Code pays the oldest bill that fits and sends larger ones to a person. The transfer's request id names the bill, and the desk asks Airwallex for it first, so the same bill is never paid twice.",
+        anim: `<svg viewBox="0 0 360 86">${["T:0 bill", "proven SGD", "transfer", "paid once"].map((w, i) => `<g class="loop" style="animation-name:pop${i};transform-origin:${45 + i * 90}px 35px"><rect x="${6 + i * 90}" y="18" width="78" height="34" rx="9" fill="var(--panel)" stroke="${i === 3 ? "var(--good)" : i === 2 ? "var(--awx)" : "var(--line)"}" stroke-width="2"/><text class="big" x="${45 + i * 90}" y="40" text-anchor="middle">${w}</text></g>${i < 3 ? `<path d="M${84 + i * 90} 35h12" stroke="var(--muted)" stroke-width="2"/>` : ""}`).join("")}<text x="180" y="76" text-anchor="middle">pay it again: the lock answers with the first transfer</text></svg>`,
+        ids: `<span>Airwallex transfer ${esc(payoutEv.data.transferId)}</span><span>${esc(payoutEv.data.vendor)} ${esc(payoutEv.data.billNumber)}</span>`,
+        test: "test/payout.test.ts", scene: SCENES.of.get(payoutEv.seq) || null,
+      }] : []),
     ];
     el.innerHTML = cards.map((g) => `<article class="panel g-card lift" style="--c:var(${g.c})">
       <div class="g-anim">${g.anim}</div>
@@ -685,6 +700,7 @@
       if (d.tx) rows.push(`<tr><td>Metal</td><td>${esc(kind(e))}</td><td>${esc(who)}</td><td class="num">${d.amount != null ? usd(Number(d.amount)) : ""}</td><td class="mono">${txLink(d.tx)}</td></tr>`);
       if (e.type === "vic" && d.paymentIntentId) rows.push(`<tr><td>Airwallex</td><td>${d.captured != null ? `card capture ${usd(d.captured)} of ${usd(d.authorised)}` : d.checks && "authorised" in d.checks ? "card authorisation (hold)" : "earlier Visa payment, re-read"}</td><td>${esc(who)}</td><td class="num">${d.captured != null ? usd(d.captured) : ""}</td><td class="mono">${esc(d.paymentIntentId)}</td></tr>`);
       if (e.type === "settle" && d.conversionId) rows.push(`<tr><td>Airwallex</td><td>${esc(e.summary.replace(/^deposited /, "deposit "))}</td><td>${esc(who)}</td><td class="num"></td><td class="mono">${esc(short(d.conversionId))}</td></tr>`);
+      if (e.type === "payout") rows.push(`<tr><td>Airwallex</td><td>vendor payout: ${esc(d.vendor)} bill ${esc(d.billNumber)} (transfer ${esc(d.transferStatus || d.status || "")})</td><td>Northwind</td><td class="num">${esc(d.currency)} ${(Number(d.amount) / 100).toFixed(2)}</td><td class="mono">${esc(d.transferId)}</td></tr>`);
       if (e.type === "books" && d.journalEntryId) rows.push(`<tr><td>T:0</td><td>${esc(e.summary)}</td><td>${esc(who)}</td><td class="num"></td><td class="mono">${esc(d.journalEntryId)}</td></tr>`);
     }
     $("txs").innerHTML = `<thead><tr><th>Rail</th><th>What</th><th>Buyer</th><th>Amount</th><th>Id</th></tr></thead><tbody>${rows.join("")}</tbody>`;
@@ -698,7 +714,7 @@
     const panels = [
       { n: "Metal", c: "--metal", ic: "link", role: "where credit lives and money moves", used: ["Supplier-issued debit mandates bound by each buyer's human: the credit line and its cap", "A statement as its own mandate: budget = total, one payment, a due window", "Supplier-held pull key; replace mandate when the human cuts the line", "Refusals recorded on chain by the supplier"], stats: [[count("mandate"), "mandates bound"], [count("statement"), "statement mandates"], [st.k.pulls, "collections"], [st.k.refusals, "refusals on chain"]], code: "src/metal/agent.ts · Desk.collectStatement" },
       { n: "Visa Intelligent Commerce · Airi", c: "--visa", ic: "card", role: "how a new buyer earns trust", used: ["Passkey-approved mandate per card statement (VIC via Airi)", "Single-use credential read once into a 0600 file, then deleted", "Pre-authorise the full statement; capture only the undisputed amount", "The verified capture counts toward terms once, for one buyer"], stats: [[st.k.holds, "card holds"], [usd(st.k.captured), "captured"], [count("vic"), "Visa events read back"]], code: "src/visa/card-statement.ts · Desk.verifyCardCapture" },
-      { n: "Airwallex", c: "--awx", ic: "globe", role: "the supplier's bank", used: ["Payment Acceptance: create, confirm (pre-auth), partial capture, read back", "Every Visa payment re-read before it counts", "FX quote and conversion USD → SGD, with a refund reserve", "Global Account deposits referencing the Metal tx (sandbox simulation)"], stats: [[st.k.settled, "settlements"], [st.k.sgd.toFixed(2), "SGD converted"], [count("vic"), "payment intents read"]], code: "src/settlement/bridge.ts · src/airwallex/client.ts" },
+      { n: "Airwallex", c: "--awx", ic: "globe", role: "the supplier's bank", used: ["Payment Acceptance: create, confirm (pre-auth), partial capture, read back", "Every Visa payment re-read before it counts", "FX quote and conversion USD → SGD, with a refund reserve", "Transfers: a vendor bill paid from proven SGD, once (the request id names the bill)", "Global Account deposits referencing the Metal tx (sandbox simulation)"], stats: [[st.k.settled, "settlements"], [st.k.sgd.toFixed(2), "SGD converted"], [st.k.payouts, "vendor transfers"], [count("vic"), "payment intents read"]], code: "src/settlement/bridge.ts · src/airwallex/client.ts" },
       { n: "T:0", c: "--t0", ic: "book", role: "the books that decide and record", used: ["Payment history read over MCP decides net-30 vs net-7 vs prepay", "Every settled collection posted as a balanced journal entry tied to its Metal tx", "Idempotent posting (a repeat is answered, not doubled)"], stats: [[st.k.journals, "journal entries"], [count("books", (d) => d.source === "t0" && !d.journalEntryId), "history reads"]], code: "src/books/books.ts" },
       { n: "Claude", c: "--claude", ic: "spark", role: "reads and proposes, never decides money", used: ["Buyer agents with typed tools (catalog, account, offer, order) via the tool runner", "Structured outputs: the CFO policy compiler and the dispute reader", "Says what it can't express instead of guessing", `Model: ${model}`], stats: [[count("agent"), "agent decisions"], [count("policy"), "policies compiled"], [count("dispute"), "disputes read"]], code: "src/agents/buyer.ts · src/policy/policy.ts · src/disputes/reader.ts" },
       { n: "Northwind desk (code)", c: "--accent", ic: "desk", role: "where every dollar is decided", used: ["Credit engine in integer cents: limit = min(terms cap, mandate headroom, balance)", "Rails on policy; credits at the price charged; whole-order collections", "Crash-safe pulls reconciled from the chain", "21 proof checks after every run"], stats: [[EVENTS.length, "events logged"], [st.k.proof ? `${st.k.proof.pass}/${st.k.proof.total}` : "—", "proof checks"]], code: "src/desk/desk.ts · src/proof/checker.ts" },
@@ -719,7 +735,8 @@
     { view: "desk", target: "#buyers .card:nth-child(2)", scene: ["3", "3b", "3c", "3d"], title: "A new buyer climbs the ladder", body: "Globex has no history. A passkey-approved Visa hold secures a 7-day tab; after a $12 credit, only $48 of $60 is captured, and that payment earns it net-7." },
     { view: "desk", target: ".railcard", scene: "5b", title: "Mid-book, the book re-prices", body: "The CFO caps any buyer at $100 with tabs open. The dry run shows the excess, and once the signed policy lands the desk collects it on chain." },
     { view: "desk", target: ".railcard", scene: "6b", title: "The statement is the mandate", body: "Acme's statement is its own Metal mandate. Watch the early collection bounce off Metal: refused on chain, and the refusal is recorded." },
-    { view: "guarantees", target: "#g-grid", title: "Four guarantees", body: "Each is enforced by a rail or by code, visible in the run, and covered by a test, including a live crash in the middle of a pull." },
+    ...(EVENTS.some((e) => e.type === "payout") ? [{ view: "desk", target: ".railcard", scene: SCENES.of.get(EVENTS.find((e) => e.type === "payout").seq), title: "Pay the vendor, once", body: "Northwind pays an overdue bill from its T:0 books with one Airwallex transfer, funded only from the SGD this run proved. Bills bigger than proven money covers go to a person." }] : []),
+    { view: "guarantees", target: "#g-grid", title: "The guarantees", body: "Each is enforced by a rail or by code, visible in the run, and covered by a test, including a live crash in the middle of a pull." },
     { view: "proof", target: "#seal", title: "Every dollar proven", body: "After the run the desk re-reads everything: transfers on chain, card captures in Airwallex, journal entries in T:0. Every id on this page is checkable." },
     { view: "built-on", target: "#built", title: "Built on", body: "Metal, Visa via Airi, Airwallex, T:0 and Claude, each doing one job, with the numbers from this run. That's TAB." },
   ];
