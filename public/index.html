@@ -2,246 +2,98 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>TAB · Supplier Desk</title>
-<style>
-  :root {
-    --bg: #f6f5f1; --panel: #ffffff; --ink: #16181d; --muted: #5d6470; --line: #e3e1da;
-    --accent: #ff5a1f; --good: #12805c; --good-bg: #e3f4ec; --warn: #a15c00; --warn-bg: #fdf0d8;
-    --bad: #b42318; --bad-bg: #fde8e6; --info: #2952cc; --info-bg: #e8eefc; --bar: #ece9e1;
-    --mono: ui-monospace, "SF Mono", Menlo, monospace;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --bg: #0f1115; --panel: #171a21; --ink: #eceef2; --muted: #9aa3b2; --line: #262b35;
-      --good: #4cc79a; --good-bg: #12302a; --warn: #f0b552; --warn-bg: #33270f; --bad: #ff7a6e; --bad-bg: #3a1716;
-      --info: #8aa8ff; --info-bg: #1a2442; --bar: #232833;
-    }
-  }
-  :root[data-theme="dark"] {
-    --bg: #0f1115; --panel: #171a21; --ink: #eceef2; --muted: #9aa3b2; --line: #262b35;
-    --good: #4cc79a; --good-bg: #12302a; --warn: #f0b552; --warn-bg: #33270f; --bad: #ff7a6e; --bad-bg: #3a1716;
-    --info: #8aa8ff; --info-bg: #1a2442; --bar: #232833;
-  }
-  * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif; }
-  header { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between; padding: 18px 28px; border-bottom: 1px solid var(--line); }
-  .brand { display: flex; align-items: baseline; gap: 12px; }
-  .brand b { font-size: 26px; letter-spacing: -0.02em; }
-  .brand b span { color: var(--accent); }
-  .brand small { color: var(--muted); font-size: 14px; }
-  .rails { display: flex; flex-wrap: wrap; gap: 8px; }
-  .rail { font-size: 12px; padding: 5px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); color: var(--muted); }
-  .rail i { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; background: var(--good); vertical-align: middle; }
-  .rail.off i { background: var(--warn); }
-  main { display: grid; grid-template-columns: minmax(320px, 420px) 1fr; gap: 24px; padding: 24px 28px; }
-  @media (max-width: 900px) { main { grid-template-columns: 1fr; padding: 16px; } header { padding: 16px; } }
-  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0 0 12px; font-weight: 600; }
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; margin-bottom: 16px; }
-  .row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-  .name { font-weight: 650; font-size: 17px; }
-  .addr { font-family: var(--mono); font-size: 12px; color: var(--muted); }
-  .badge { font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; letter-spacing: 0.02em; }
-  .NET_30 { background: var(--good-bg); color: var(--good); }
-  .NET_7 { background: var(--warn-bg); color: var(--warn); }
-  .PREPAY { background: var(--bad-bg); color: var(--bad); }
-  .limit { margin: 16px 0 6px; display: flex; align-items: baseline; gap: 10px; }
-  .limit .big { font-size: 34px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; transition: color .4s; }
-  .limit .lbl { color: var(--muted); font-size: 13px; }
-  .bar { position: relative; height: 10px; background: var(--bar); border-radius: 999px; overflow: hidden; }
-  .bar .used { position: absolute; inset: 0 auto 0 0; background: var(--accent); border-radius: 999px; transition: width .6s ease; }
-  .legend { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-top: 6px; font-variant-numeric: tabular-nums; }
-  dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 16px 0 0; font-size: 13px; }
-  dt { color: var(--muted); }
-  dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
-  .why { margin: 14px 0 0; padding: 0; list-style: none; font-size: 13px; }
-  .why li { padding: 6px 0; border-top: 1px dashed var(--line); color: var(--muted); }
-  .why li b { color: var(--ink); font-weight: 600; }
-  .tag { font-size: 11px; padding: 2px 7px; border-radius: 6px; background: var(--warn-bg); color: var(--warn); }
-  .tag.t0 { background: var(--info-bg); color: var(--info); }
-  .timeline { list-style: none; margin: 0; padding: 0; }
-  .ev { display: grid; grid-template-columns: 70px 110px 1fr; gap: 12px; align-items: start; padding: 12px 14px; border-bottom: 1px solid var(--line); background: var(--panel); }
-  .ev:first-child { border-radius: 14px 14px 0 0; }
-  .ev.new { animation: arrive .8s ease; }
-  @keyframes arrive { from { background: var(--info-bg); transform: translateY(-6px); opacity: 0; } to { transform: none; opacity: 1; } }
-  .ev time { font-family: var(--mono); font-size: 12px; color: var(--muted); padding-top: 2px; }
-  .pill { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding: 3px 8px; border-radius: 6px; justify-self: start; }
-  .p-decision { background: var(--info-bg); color: var(--info); }
-  .p-order { background: var(--bar); color: var(--ink); }
-  .p-collect { background: var(--good-bg); color: var(--good); }
-  .p-collect_refused, .p-escalate { background: var(--bad-bg); color: var(--bad); }
-  .p-credit, .p-dispute, .p-books { background: var(--warn-bg); color: var(--warn); }
-  .p-vic, .p-mandate, .p-settle, .p-statement { background: var(--good-bg); color: var(--good); }
-  .p-refused { background: var(--bad-bg); color: var(--bad); }
-  .p-agent { background: var(--info-bg); color: var(--info); }
-  .p-policy { background: var(--accent); color: #fff; }
-  .p-proof { background: var(--ink); color: var(--bg); }
-  .ev.agent .sum { font-style: italic; border-left: 3px solid var(--info); padding-left: 10px; }
-  .who { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; display: block; margin-bottom: 2px; }
-  .proof { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; margin-bottom: 16px; }
-  .proof .head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
-  .proof .head b { font-size: 18px; }
-  .proof .ok { color: var(--good); } .proof .bad { color: var(--bad); }
-  .proof ul { list-style: none; margin: 10px 0 0; padding: 0; font-size: 13px; }
-  .proof li { padding: 4px 0; break-inside: avoid; }
-  .proof details { font-size: 13px; padding: 4px 0; }
-  .try { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line); font-size: 13px; }
-  .try b { display: block; margin-bottom: 8px; }
-  .try button { font: inherit; font-size: 12px; padding: 6px 10px; margin: 0 6px 6px 0; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); cursor: pointer; }
-  .try button:disabled { opacity: .5; cursor: wait; }
-  .try output { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; min-height: 1em; }
-  .proof summary { cursor: pointer; }
-  .proof details ul { columns: 1; margin: 4px 0 6px 20px; }
-  .proof li small { color: var(--muted); font-variant-numeric: tabular-nums; }
-  .stmts { margin: 12px 0 0; font-size: 13px; }
-  .stmt { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-top: 1px dashed var(--line); }
-  .stmt .st { font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 6px; }
-  .st.accepted { background: var(--info-bg); color: var(--info); } .st.collected { background: var(--good-bg); color: var(--good); } .st.unpaid { background: var(--bad-bg); color: var(--bad); }
-  .ids { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-top: 4px; }
-  .ev .sum { font-size: 14px; }
-  .ev a { font-family: var(--mono); font-size: 12px; color: var(--info); text-decoration: none; display: inline-block; margin-top: 4px; }
-  .ev a:hover { text-decoration: underline; }
-  .empty { color: var(--muted); padding: 24px; text-align: center; background: var(--panel); border: 1px dashed var(--line); border-radius: 14px; }
-  footer { padding: 0 28px 24px; color: var(--muted); font-size: 12px; }
-  @media (max-width: 600px) { .ev { grid-template-columns: 1fr; gap: 4px; } }
-</style>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TAB Desk</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="TAB: net terms for AI agents. A supplier credit desk on Metal, Visa Intelligent Commerce, Airwallex and T:0, with every dollar proven.">
+<link rel="icon" type="image/svg+xml" href="logo.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="brand.css">
 </head>
 <body>
-<header>
-  <div class="brand"><b>TAB<span>.</span></b><small>Net terms for AI agents · Northwind Data supplier desk</small></div>
-  <div class="rails" id="rails">
-    <span class="rail"><i></i>Claude · buyer agents + dispute reading</span>
-    <span class="rail"><i></i>Metal testnet · debit mandates</span>
-    <span class="rail"><i></i>Visa Intelligent Commerce via Airi</span>
-    <span class="rail"><i></i>Airwallex sandbox · FX + payments</span>
-    <span class="rail off" id="booksRail"><i></i>Books: stand-in (T:0 pending)</span>
+<header class="top">
+  <div class="wrap">
+    <div class="brand">
+      <svg id="mark" class="mark" viewBox="0 0 64 64" role="img" aria-label="TAB logo: a buyer's tab, paid later, landing as a check">
+        <path class="ink" fill="none" stroke-width="4.5" stroke-linejoin="round" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100"
+              d="M9 23a6 6 0 0 1 6-6h10.6a4 4 0 0 1 3.1 1.5L32.5 23H49a6 6 0 0 1 6 6v20a6 6 0 0 1-6 6H15a6 6 0 0 1-6-6Z">
+          <animate attributeName="stroke-dashoffset" from="100" to="0" begin="0s" dur="0.8s" fill="freeze" calcMode="spline" keySplines="0.4 0 0.2 1" keyTimes="0;1"/>
+        </path>
+        <circle class="coin" r="3.4" cx="0" cy="0" opacity="0">
+          <animateMotion begin="0.55s" dur="0.75s" fill="freeze" calcMode="spline" keySplines="0.5 0 0.3 1" keyTimes="0;1" path="M4 4 C 14 -4, 20 20, 22 38"/>
+          <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.15;0.85;1" begin="0.55s" dur="0.8s" fill="freeze"/>
+        </circle>
+        <path class="acc" fill="none" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100" d="M22 38l7 7 14-15">
+          <animate attributeName="stroke-dashoffset" from="100" to="0" begin="1.25s" dur="0.45s" fill="freeze" calcMode="spline" keySplines="0.3 0 0.2 1" keyTimes="0;1"/>
+        </path>
+      </svg>
+      <div><div class="word">TAB<span>.</span></div><span class="sub">Net terms for AI agents · Northwind Data's credit desk</span></div>
+    </div>
+    <span class="mode" id="mode"><i></i>Desk</span>
   </div>
 </header>
-<main>
-  <section><h2>Buyer agents on credit</h2><div id="buyers"><div class="empty">Waiting for the desk…</div></div></section>
-  <section><div id="proof"></div><h2>What the desk decided · live</h2><ul class="timeline" id="timeline"></ul><div class="empty" id="noEvents">No events yet.</div></section>
+
+<section class="wrap intro" id="intro">
+  <div>
+    <h1>AI agents buy on credit. <em>The desk still gets every dollar, and proves it.</em></h1>
+    <p>Every other agent-payments project teaches agents to hear "no". TAB says "yes, pay later". Northwind Data sells to buyer agents on terms: <strong>Claude</strong> runs the agents and reads the messy text, <strong>code</strong> decides every price, limit, credit and collection, and <strong>Metal, Visa via Airi, Airwallex and T:0</strong> move and record the money.</p>
+    <p class="replay-only">This is one live run, <strong id="runId"></strong>, played back event by event. Each Metal transaction links to the public testnet explorer; Airwallex and T:0 ids come from private sandboxes that the desk's checker read back after the run.</p>
+  </div>
+  <aside class="labelled" aria-label="What is labelled">
+    <h2>Labelled, not hidden</h2>
+    <ul>
+      <li>Globex's and Initech's books are a stand-in; Acme's are real T:0 sandbox records.</li>
+      <li>Airwallex deposits are sandbox simulations; quotes, conversions and card payments are real sandbox calls.</li>
+      <li>Due dates are compressed to minutes so the run fits a video.</li>
+      <li>Stale units are set by the script, standing in for delivery QA.</li>
+    </ul>
+  </aside>
+</section>
+
+<section class="wrap kpis" aria-label="Headline numbers">
+  <div class="kpi"><div class="v" id="k-terms">$0.00</div><div class="l">Put on terms</div></div>
+  <div class="kpi"><div class="v" id="k-collected">$0.00</div><div class="l">Collected</div></div>
+  <div class="kpi refused"><div class="v" id="k-refused">0</div><div class="l">Refused on chain</div></div>
+  <div class="kpi proof"><div class="v" id="k-proof">—</div><div class="l">Proof checks</div></div>
+</section>
+
+<section class="wrap rails" aria-label="Rails map">
+  <div class="railcard"><div id="rails"></div><div class="legend" id="railstats"></div></div>
+</section>
+
+<section class="player" aria-label="Replay controls">
+  <div class="wrap">
+    <div class="controls replay-only">
+      <button class="btn" id="restart" type="button" aria-label="Back to the start">⏮ Start</button>
+      <button class="btn" id="back" type="button" aria-label="Previous event">◀</button>
+      <button class="btn primary" id="play" type="button">▶ Play</button>
+      <button class="btn" id="fwd" type="button" aria-label="Next event">▶</button>
+      <select class="btn" id="speed" aria-label="Playback speed">
+        <option value="1800">1×</option>
+        <option value="1100" selected>2×</option>
+        <option value="600">4×</option>
+      </select>
+      <div class="progress"><input id="scrub" type="range" min="0" value="0" aria-label="Event position"><output id="pos"></output></div>
+    </div>
+    <div class="scenes" id="scenes" role="group" aria-label="Jump to a scene"></div>
+    <div class="caption" id="caption"></div>
+  </div>
+</section>
+
+<main class="wrap grid">
+  <section aria-label="Buyer agents"><h2 class="sec">Buyer agents on credit</h2><div id="buyers"></div></section>
+  <section aria-label="Proof and events"><div id="proof"></div><h2 class="sec">What the desk did</h2><ul class="timeline" id="timeline"></ul></section>
 </main>
-<footer id="foot"></footer>
-<script>
-const usd = (c) => (c == null ? "—" : "$" + (c / 100).toFixed(2));
-const esc = (s) => String(s).replace(/[&<>"]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m]));
-const short = (a) => (a ? a.slice(0, 6) + "…" + a.slice(-4) : "");
-const EXPLORER = "https://testnet.metalntwx.com/tx/";
-const REASON = {
-  NET_30_EARNED: "Earned net-30", NET_7_DEFAULT: "Net-7 (thin history)", LIMIT_BY_TERMS_CAP: "Capped by terms",
-  LIMIT_BY_MANDATE_HEADROOM: "Capped by the mandate its human signed", LIMIT_BY_ONCHAIN_BALANCE: "Capped by on-chain balance",
-  LIMIT_TIGHTENED: "Limit tightened", DEMOTED_TO_PREPAY: "Demoted to prepay", COLLECT_ALL: "Collect everything now",
-  COLLECT_EXCESS: "Collect the excess", ESCALATE_UNCOLLECTABLE: "Send to a person", OVERDUE_INVOICE: "Overdue in the books",
-  NO_VIC_HISTORY: "No Visa-verified payment yet", NO_MANDATE: "No debit mandate", MANDATE_REVOKED: "Mandate revoked",
-  MANDATE_EXPIRED: "Mandate expired", SUPPLIER_NOT_PAYEE: "Mandate doesn't name us",
-};
 
-const NAMES = {};
-function renderBuyers(buyers) {
-  buyers.forEach((b) => { NAMES[b.id] = b.name; });
-  const el = document.getElementById("buyers");
-  if (!buyers.length) { el.innerHTML = '<div class="empty">No buyers yet.</div>'; return; }
-  const srcs = new Set(buyers.map((b) => b.booksSource).filter(Boolean));
-  const rail = document.getElementById("booksRail");
-  if (srcs.has("t0")) { rail.classList.remove("off"); rail.innerHTML = srcs.has("standin") ? "<i></i>Books: T:0 + labelled stand-in" : "<i></i>Books: T:0"; }
-  el.innerHTML = buyers.map((b) => {
-    const used = b.limit > 0 ? Math.min(100, (Math.max(0, b.outstanding) / b.limit) * 100) : 0;
-    const m = b.mandate;
-    return `<div class="card">
-      <div class="row"><div><div class="name">${esc(b.name)}</div><div class="addr">${esc(short(b.account))}</div></div>
-        <span class="badge ${esc(b.terms)}">${esc(String(b.terms).replace("_", "-"))}</span></div>
-      <div class="limit"><span class="big">${usd(b.limit)}</span><span class="lbl">tab limit</span></div>
-      <div class="bar"><div class="used" style="width:${used}%"></div></div>
-      <div class="legend"><span>${usd(Math.max(0, b.outstanding))} owed · ${b.openOrders} open order(s)</span><span>${usd(b.available)} available</span></div>
-      <dl>
-        <dt>Debit mandate</dt><dd>${m ? `${usd(m.spent)} of ${usd(m.budget)} pulled${m.revoked ? " · <b>revoked</b>" : ""}` : "none"}</dd>
-        <dt>On-chain balance</dt><dd>${b.balance == null ? "—" : usd(b.balance) + " USDZ"}</dd>
-        ${b.creditBalance ? `<dt>Credit owed to buyer</dt><dd>${usd(b.creditBalance)}</dd>` : ""}
-        <dt>Books</dt><dd>${b.booksSource === "t0" ? '<span class="tag t0">T:0</span>' : '<span class="tag">stand-in</span>'}</dd>
-      </dl>
-      ${(b.statements || []).length ? `<div class="stmts">${b.statements.map((s) => `<div class="stmt"><span>Statement ${esc(s.id)} · ${usd(s.total)}${s.refusals ? ` · ${s.refusals} refused on chain` : ""}</span><span class="st ${esc(s.status)}">${esc(s.status)}</span></div>`).join("")}</div>` : ""}
-      <ul class="why">${b.reasons.slice(0, 4).map((r) => `<li><b>${esc(REASON[r.code] ?? r.code)}</b> · ${esc(r.detail)}</li>`).join("")}</ul>
-    </div>`;
-  }).join("");
-}
-
-function eventRow(e, fresh) {
-  const t = new Date(e.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-  const d = e.data || {};
-  const chainTx = d.tx || d.metalTx;
-  const tx = chainTx ? `<br><a href="${EXPLORER}${esc(chainTx)}" target="_blank" rel="noopener">Metal tx ${esc(short(chainTx))} ↗</a>` : "";
-  const awx = [d.paymentIntentId && `payment ${d.paymentIntentId}`, d.depositId && `deposit ${short(d.depositId)}`, d.conversionId && `conversion ${short(d.conversionId)}`, d.journalEntryId && `T:0 journal ${d.journalEntryId}`, d.model && `model ${d.model}`].filter(Boolean);
-  const ids = awx.length ? `<div class="ids">${esc(awx.join(" · "))}</div>` : "";
-  const label = { vic: "Visa VIC", collect_refused: "refused", settle: "Airwallex", agent: "buyer agent", proof: "proof", policy: "CFO policy" }[e.type] ?? e.type.replace("_", " ");
-  const who = e.buyerId && e.buyerId !== "desk" ? `<span class="who">${esc(NAMES[e.buyerId] ?? e.buyerId)}</span>` : "";
-  return `<li class="ev ${esc(e.type)}${fresh ? " new" : ""}"><time>${t}</time><span class="pill p-${esc(e.type)}">${esc(label)}</span><div class="sum">${who}${esc(e.summary)}${tx}${ids}</div></li>`;
-}
-
-function renderProof(e) {
-  const checks = (e.data && e.data.checks) || [];
-  const breaks = checks.filter((c) => !c.ok).length;
-  document.getElementById("proof").innerHTML = `<div class="proof"><div class="head"><b>Every dollar proven</b><span class="${breaks ? "bad" : "ok"}">${checks.length - breaks}/${checks.length} checks pass${breaks ? ` · ${breaks} break(s)` : ""}</span></div>
-    ${proofGroups(checks)}${tryPanel()}</div>`;
-}
-
-let FAULTS = null;
-let tryResult = "";
-function tryPanel() {
-  if (!FAULTS) return "";
-  const buttons = Object.entries(FAULTS).map(([k, label]) => `<button data-fault="${esc(k)}">${esc(label)}</button>`).join("");
-  return `<div class="try"><b>Try to make TAB double-charge</b>${buttons}<output id="tryOut">${esc(tryResult)}</output></div>`;
-}
-document.addEventListener("click", async (ev) => {
-  const btn = ev.target.closest && ev.target.closest("button[data-fault]");
-  if (!btn) return;
-  document.querySelectorAll("button[data-fault]").forEach((b) => (b.disabled = true));
-  tryResult = "sending to Metal testnet…";
-  document.getElementById("tryOut").textContent = tryResult;
-  try {
-    const r = await fetch(`/api/try/${btn.dataset.fault}`, { method: "POST" }).then((x) => x.json());
-    tryResult = r.message;
-  } catch (e) { tryResult = String(e); }
-  const out = document.getElementById("tryOut");
-  if (out) out.textContent = tryResult;
-  document.querySelectorAll("button[data-fault]").forEach((b) => (b.disabled = false));
-});
-
-const checkLi = (c) => `<li><span class="${c.ok ? "ok" : "bad"}">${c.ok ? "✔" : "✘"}</span> ${esc(c.name)}<br><small>${esc(c.detail)}</small></li>`;
-function proofGroups(checks) {
-  // Per-buyer book checks fold into one line each (open it to see them); live checks show in full.
-  const groups = new Map();
-  const live = [];
-  for (const c of checks) {
-    const m = /^([a-z0-9-]+): (.*)$/.exec(c.name);
-    if (m && NAMES[m[1]]) (groups.get(m[1]) || groups.set(m[1], []).get(m[1])).push({ ...c, name: m[2] });
-    else live.push(c);
-  }
-  const g = [...groups.entries()].map(([id, cs]) => {
-    const bad = cs.filter((c) => !c.ok).length;
-    return `<details${bad ? " open" : ""}><summary><span class="${bad ? "bad" : "ok"}">${bad ? "✘" : "✔"}</span> ${esc(NAMES[id])} books · ${cs.length - bad}/${cs.length}</summary><ul>${cs.map(checkLi).join("")}</ul></details>`;
-  }).join("");
-  return `<div class="groups">${g}</div><ul>${live.map(checkLi).join("")}</ul>`;
-}
-
-let lastSeq = 0;
-function addEvents(events, fresh) {
-  if (!events.length) return;
-  document.getElementById("noEvents").style.display = "none";
-  const tl = document.getElementById("timeline");
-  tl.insertAdjacentHTML("afterbegin", events.slice().reverse().map((e) => eventRow(e, fresh)).join(""));
-  lastSeq = Math.max(lastSeq, ...events.map((e) => e.seq));
-  const proof = events.filter((e) => e.type === "proof").at(-1);
-  if (proof) renderProof(proof);
-}
-
-fetch("/api/state").then((r) => r.json()).then((s) => {
-  FAULTS = s.faults;
-  renderBuyers(s.buyers);
-  addEvents(s.events, false);
-  document.getElementById("foot").textContent = `Desk log: ${s.deskFile}. Chain data is live Metal testnet; card and FX are the Airwallex sandbox.`;
-  const es = new EventSource(`/api/stream?after=${lastSeq}`);
-  es.onmessage = (m) => { const d = JSON.parse(m.data); renderBuyers(d.buyers); addEvents(d.events, true); };
-});
-</script>
+<footer>
+  <div class="wrap">
+    <div><span class="replay-only">Recorded <span id="ranAt"></span>. </span><span id="source"></span> Times are the desk's own event times, shown in your time zone.</div>
+    <div>TAB · Airwallex Agentic Banking Hackathon · team Four Eyes, One Human</div>
+  </div>
+</footer>
+<!--RUN-->
+<script src="app.js"></script>
 </body>
 </html>

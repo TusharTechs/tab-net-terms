@@ -5,160 +5,276 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>TAB Desk Replay</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<meta name="description" content="Replay of a live TAB run: AI buyer agents on net terms, settled on Metal, Visa, Airwallex and T:0, with every dollar proven.">
+<meta name="description" content="TAB: net terms for AI agents. A supplier credit desk on Metal, Visa Intelligent Commerce, Airwallex and T:0, with every dollar proven.">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%20width%3D%2264%22%20height%3D%2264%22%20role%3D%22img%22%20aria-labelledby%3D%22t%22%3E%0A%20%20%3Ctitle%20id%3D%22t%22%3ETAB%3A%20pay%20later%2C%20still%20paid%3C%2Ftitle%3E%0A%20%20%3Cstyle%3E%0A%20%20%20%20.ink%20%7B%20stroke%3A%20%2316181d%3B%20%7D%0A%20%20%20%20.acc%20%7B%20stroke%3A%20%23ff5a1f%3B%20%7D%0A%20%20%20%20.coin%20%7B%20fill%3A%20%23ff5a1f%3B%20%7D%0A%20%20%20%20%40media%20(prefers-color-scheme%3A%20dark)%20%7B%20.ink%20%7B%20stroke%3A%20%23eceef2%3B%20%7D%20%7D%0A%20%20%3C%2Fstyle%3E%0A%20%20%3C!--%20A%20ledger%20card%20with%20a%20tab%3A%20the%20buyer's%20tab%20with%20the%20supplier.%20--%3E%0A%20%20%3Cpath%20class%3D%22ink%22%20fill%3D%22none%22%20stroke-width%3D%224.5%22%20stroke-linejoin%3D%22round%22%20pathLength%3D%22100%22%20stroke-dasharray%3D%22100%22%20stroke-dashoffset%3D%22100%22%0A%20%20%20%20%20%20%20%20d%3D%22M9%2023a6%206%200%200%201%206-6h10.6a4%204%200%200%201%203.1%201.5L32.5%2023H49a6%206%200%200%201%206%206v20a6%206%200%200%201-6%206H15a6%206%200%200%201-6-6Z%22%3E%0A%20%20%20%20%3Canimate%20attributeName%3D%22stroke-dashoffset%22%20from%3D%22100%22%20to%3D%220%22%20begin%3D%220s%22%20dur%3D%220.8s%22%20fill%3D%22freeze%22%20calcMode%3D%22spline%22%20keySplines%3D%220.4%200%200.2%201%22%20keyTimes%3D%220%3B1%22%2F%3E%0A%20%20%3C%2Fpath%3E%0A%20%20%3C!--%20The%20payment%20arrives%20later...%20--%3E%0A%20%20%3Ccircle%20class%3D%22coin%22%20r%3D%223.4%22%20cx%3D%220%22%20cy%3D%220%22%20opacity%3D%220%22%3E%0A%20%20%20%20%3CanimateMotion%20begin%3D%220.55s%22%20dur%3D%220.75s%22%20fill%3D%22freeze%22%20calcMode%3D%22spline%22%20keySplines%3D%220.5%200%200.3%201%22%20keyTimes%3D%220%3B1%22%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20path%3D%22M4%204%20C%2014%20-4%2C%2020%2020%2C%2022%2038%22%2F%3E%0A%20%20%20%20%3Canimate%20attributeName%3D%22opacity%22%20values%3D%220%3B1%3B1%3B0%22%20keyTimes%3D%220%3B0.15%3B0.85%3B1%22%20begin%3D%220.55s%22%20dur%3D%220.8s%22%20fill%3D%22freeze%22%2F%3E%0A%20%20%3C%2Fcircle%3E%0A%20%20%3C!--%20...and%20lands%20as%20proof.%20--%3E%0A%20%20%3Cpath%20class%3D%22acc%22%20fill%3D%22none%22%20stroke-width%3D%225%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20pathLength%3D%22100%22%20stroke-dasharray%3D%22100%22%20stroke-dashoffset%3D%22100%22%0A%20%20%20%20%20%20%20%20d%3D%22M22%2038l7%207%2014-15%22%3E%0A%20%20%20%20%3Canimate%20attributeName%3D%22stroke-dashoffset%22%20from%3D%22100%22%20to%3D%220%22%20begin%3D%221.25s%22%20dur%3D%220.45s%22%20fill%3D%22freeze%22%20calcMode%3D%22spline%22%20keySplines%3D%220.3%200%200.2%201%22%20keyTimes%3D%220%3B1%22%2F%3E%0A%20%20%3C%2Fpath%3E%0A%3C%2Fsvg%3E%0A">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
 <style>
-  /* Layout: a player bar over two columns (buyer credit cards | proof + event log), one column on phones. */
-  :root {
-    --bg: #f5f4ef; --panel: #ffffff; --ink: #16181d; --muted: #5b6270; --line: #e2dfd6;
-    --accent: #ff5a1f; --accent-ink: #ffffff;
-    --good: #12805c; --good-bg: #e3f4ec; --warn: #9a5800; --warn-bg: #fdf0d8;
-    --bad: #b42318; --bad-bg: #fde8e6; --info: #2952cc; --info-bg: #e8eefc; --bar: #ebe8df;
-    --sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
-    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+/* TAB brand + desk UI. Layout: header · headline counters · rails map · player · (buyers | proof + event log). */
+:root {
+  --bg: #f4f3ee; --panel: #ffffff; --panel-2: #faf9f5; --ink: #15171c; --muted: #5a6170; --line: #e1ded5; --bar: #ebe8df;
+  --accent: #ff5a1f; --accent-ink: #ffffff; --accent-soft: #ffe7dc;
+  --good: #11805b; --good-bg: #e2f3eb; --warn: #9a5800; --warn-bg: #fcefd6; --bad: #b42318; --bad-bg: #fde7e4;
+  --info: #2952cc; --info-bg: #e7edfc;
+  /* one hue per rail */
+  --metal: #11805b; --visa: #5b4fd6; --awx: #0e8aa6; --t0: #2952cc; --claude: #a8610a; --cfo: #ff5a1f;
+  --display: "Space Grotesk", "Inter", system-ui, sans-serif;
+  --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --shadow: 0 1px 0 rgba(20, 20, 20, 0.02), 0 8px 24px -16px rgba(20, 20, 20, 0.18);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1014; --panel: #161920; --panel-2: #1b1f27; --ink: #eceef2; --muted: #98a1b0; --line: #272c36; --bar: #232833;
+    --accent: #ff6a33; --accent-ink: #170b05; --accent-soft: #3a1d10;
+    --good: #4cc79a; --good-bg: #11302a; --warn: #f0b552; --warn-bg: #33270f; --bad: #ff7a6e; --bad-bg: #3a1716;
+    --info: #8aa8ff; --info-bg: #1a2442;
+    --metal: #4cc79a; --visa: #a99cff; --awx: #4fc7e0; --t0: #8aa8ff; --claude: #f0b552; --cfo: #ff6a33;
+    --shadow: 0 1px 0 rgba(0, 0, 0, 0.3), 0 12px 28px -18px rgba(0, 0, 0, 0.7);
+    color-scheme: dark;
   }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --bg: #0f1115; --panel: #171a21; --ink: #eceef2; --muted: #9aa3b2; --line: #272c36;
-      --accent: #ff6a33; --accent-ink: #160b05;
-      --good: #4cc79a; --good-bg: #12302a; --warn: #f0b552; --warn-bg: #33270f; --bad: #ff7a6e; --bad-bg: #3a1716;
-      --info: #8aa8ff; --info-bg: #1a2442; --bar: #232833; color-scheme: dark;
-    }
-  }
-  :root[data-theme="dark"] {
-    --bg: #0f1115; --panel: #171a21; --ink: #eceef2; --muted: #9aa3b2; --line: #272c36;
-    --accent: #ff6a33; --accent-ink: #160b05;
-    --good: #4cc79a; --good-bg: #12302a; --warn: #f0b552; --warn-bg: #33270f; --bad: #ff7a6e; --bad-bg: #3a1716;
-    --info: #8aa8ff; --info-bg: #1a2442; --bar: #232833; color-scheme: dark;
-  }
-  * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--sans); }
-  .wrap { max-width: 1240px; margin: 0 auto; padding-block: 0; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
-  a { color: var(--info); }
-  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1014; --panel: #161920; --panel-2: #1b1f27; --ink: #eceef2; --muted: #98a1b0; --line: #272c36; --bar: #232833;
+  --accent: #ff6a33; --accent-ink: #170b05; --accent-soft: #3a1d10;
+  --good: #4cc79a; --good-bg: #11302a; --warn: #f0b552; --warn-bg: #33270f; --bad: #ff7a6e; --bad-bg: #3a1716;
+  --info: #8aa8ff; --info-bg: #1a2442;
+  --metal: #4cc79a; --visa: #a99cff; --awx: #4fc7e0; --t0: #8aa8ff; --claude: #f0b552; --cfo: #ff6a33;
+  --shadow: 0 1px 0 rgba(0, 0, 0, 0.3), 0 12px 28px -18px rgba(0, 0, 0, 0.7);
+  color-scheme: dark;
+}
 
-  header.top { border-bottom: 1px solid var(--line); }
-  header.top .wrap { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; justify-content: space-between; padding-block: 18px; }
-  .brand { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
-  .brand b { font-size: 26px; letter-spacing: -0.02em; }
-  .brand b span { color: var(--accent); }
-  .brand small { color: var(--muted); font-size: 14px; }
-  .rails { display: flex; flex-wrap: wrap; gap: 6px; }
-  .rail { font-size: 12px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); color: var(--muted); }
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.5 var(--sans); -webkit-font-smoothing: antialiased; }
+a { color: var(--info); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.wrap { max-width: 1280px; margin: 0 auto; padding-block: 0; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.mono { font-family: var(--mono); }
 
-  .intro { padding-block: 22px 8px; display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 24px; align-items: start; }
-  .intro h1 { font-size: 28px; line-height: 1.2; letter-spacing: -0.02em; margin: 0 0 10px; text-wrap: balance; }
-  .intro p { margin: 0 0 10px; max-width: 64ch; color: var(--muted); }
-  .intro p strong { color: var(--ink); font-weight: 600; }
-  .labelled { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; font-size: 13px; }
-  .labelled h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0 0 8px; font-weight: 600; }
-  .labelled ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+/* ── header ─────────────────────────────────────────────── */
+header.top { border-bottom: 1px solid var(--line); background: var(--bg); }
+header.top .wrap { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; justify-content: space-between; padding-block: 16px; }
+.brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.brand .mark { width: 44px; height: 44px; flex: none; cursor: pointer; }
+.brand .mark .ink { stroke: var(--ink); }
+.brand .mark .acc { stroke: var(--accent); }
+.brand .mark .coin { fill: var(--accent); }
+.brand .word { font-family: var(--display); font-weight: 700; font-size: 28px; letter-spacing: -0.03em; line-height: 1; }
+.brand .word span { color: var(--accent); }
+.brand .sub { display: block; font-size: 13px; color: var(--muted); margin-top: 3px; letter-spacing: 0; font-family: var(--sans); font-weight: 500; }
+.mode { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); }
+.mode i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.mode.live i { background: var(--bad); animation: blink 1.4s infinite; }
+.mode.live { color: var(--ink); }
+@keyframes blink { 50% { opacity: 0.25; } }
 
-  .player { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); }
-  body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
-  .player .wrap { display: grid; gap: 10px; padding-block: 12px; }
-  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-  .controls button, .controls select { font: inherit; font-size: 13px; padding: 7px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer; }
-  .controls button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; min-width: 96px; }
-  .controls button:disabled { opacity: .45; cursor: default; }
-  .progress { flex: 1 1 200px; min-width: 0; display: flex; align-items: center; gap: 10px; }
-  .progress input { flex: 1; min-width: 0; accent-color: var(--accent); }
-  .progress output { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .scenes { display: flex; flex-wrap: wrap; gap: 6px; }
-  .scenes button { font: inherit; font-size: 12px; padding: 4px 9px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--muted); cursor: pointer; font-variant-numeric: tabular-nums; }
-  .scenes button.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
-  .scenes button.done { color: var(--ink); }
-  .caption { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; text-wrap: balance; }
-  .caption span { color: var(--accent); margin-right: 8px; font-variant-numeric: tabular-nums; }
+/* ── headline counters ──────────────────────────────────── */
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding-block: 18px 6px; }
+.kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; box-shadow: var(--shadow); min-width: 0; }
+.kpi .v { font-family: var(--display); font-size: 30px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.kpi .l { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; font-weight: 600; margin-top: 4px; }
+.kpi.proof .v { color: var(--good); }
+.kpi.refused .v { color: var(--bad); }
+.kpi.bump .v { animation: bump 0.5s ease; }
+@keyframes bump { 30% { transform: translateY(-3px); } }
 
-  main.grid { display: grid; grid-template-columns: minmax(300px, 400px) minmax(0, 1fr); gap: 24px; padding-block: 20px 32px; }
-  h2.sec { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0 0 12px; font-weight: 600; }
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; margin-bottom: 16px; }
-  .row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-  .name { font-weight: 650; font-size: 17px; }
-  .addr { font-family: var(--mono); font-size: 12px; color: var(--muted); }
-  .badge { font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
-  .NET_30 { background: var(--good-bg); color: var(--good); }
-  .NET_7 { background: var(--warn-bg); color: var(--warn); }
-  .PREPAY, .none { background: var(--bad-bg); color: var(--bad); }
-  .limit { margin: 14px 0 6px; display: flex; align-items: baseline; gap: 10px; }
-  .limit .big { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
-  .limit .lbl { color: var(--muted); font-size: 13px; }
-  .bar { position: relative; height: 8px; background: var(--bar); border-radius: 999px; overflow: hidden; }
-  .bar i { position: absolute; inset: 0 auto 0 0; background: var(--accent); border-radius: 999px; transition: width .4s ease; }
-  .legend { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); margin-top: 6px; font-variant-numeric: tabular-nums; }
-  dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 14px; margin: 14px 0 0; font-size: 13px; }
-  dt { color: var(--muted); }
-  dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-  .why { margin: 12px 0 0; padding: 0; list-style: none; font-size: 13px; }
-  .why li { padding: 6px 0; border-top: 1px dashed var(--line); color: var(--muted); }
-  .why li b { color: var(--ink); font-weight: 600; }
-  .tag { font-size: 11px; padding: 2px 7px; border-radius: 6px; background: var(--warn-bg); color: var(--warn); }
-  .tag.t0 { background: var(--info-bg); color: var(--info); }
+/* ── rails map ──────────────────────────────────────────── */
+.rails { padding-block: 12px 4px; }
+.railcard { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); padding: 8px 8px 4px; overflow-x: auto; }
+.railcard svg { display: block; width: 100%; min-width: 720px; height: auto; }
+.railcard .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 4px 10px 8px; font-size: 12px; color: var(--muted); }
+.railcard .legend span { display: inline-flex; align-items: center; gap: 6px; }
+.railcard .legend i { width: 10px; height: 10px; border-radius: 50%; }
+.edge { fill: none; stroke: var(--line); stroke-width: 2; }
+.edge.dashed { stroke-dasharray: 5 6; }
+.edge.hot { stroke-width: 3; transition: stroke 0.3s; }
+.node rect { fill: var(--panel-2); stroke: var(--line); stroke-width: 1.5; transition: stroke 0.25s, fill 0.25s; }
+.node .t { font: 600 14px var(--display); fill: var(--ink); letter-spacing: -0.01em; }
+.node .s { font: 500 11px var(--sans); fill: var(--muted); }
+.node .ic { stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.node.flash rect { stroke-width: 2.5; }
+.node.shake { animation: shake 0.45s; transform-box: fill-box; transform-origin: center; }
+@keyframes shake { 20%, 60% { transform: translateX(-4px); } 40%, 80% { transform: translateX(4px); } }
+.packet { filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.25)); }
+.plabel { font: 600 11px var(--mono); }
+.stamp { font: 700 11px var(--sans); letter-spacing: 0.08em; text-transform: uppercase; }
 
-  .proof { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; margin-bottom: 16px; }
-  .proof .head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
-  .proof .head b { font-size: 18px; }
-  .ok { color: var(--good); } .bad { color: var(--bad); }
-  .proof ul { list-style: none; margin: 10px 0 0; padding: 0; font-size: 13px; display: grid; gap: 6px; }
-  .proof li small { color: var(--muted); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-  .proof details { font-size: 13px; padding: 3px 0; }
-  .proof summary { cursor: pointer; }
-  .proof details ul { margin: 4px 0 6px 20px; }
+/* ── player ─────────────────────────────────────────────── */
+.player { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.player .wrap { display: grid; gap: 10px; padding-block: 12px; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.btn { font: 600 13px var(--sans); padding: 8px 13px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.btn:hover:not(:disabled) { border-color: var(--muted); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); min-width: 104px; justify-content: center; }
+.btn:disabled { opacity: 0.45; cursor: default; }
+select.btn { padding-right: 8px; }
+.progress { flex: 1 1 220px; min-width: 0; display: flex; align-items: center; gap: 10px; }
+.progress input { flex: 1; min-width: 0; accent-color: var(--accent); }
+.progress output { font: 500 12px var(--mono); color: var(--muted); white-space: nowrap; }
+.scenes { display: flex; flex-wrap: wrap; gap: 6px; }
+.scenes button { font: 600 12px var(--mono); padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--muted); cursor: pointer; }
+.scenes button.done { color: var(--ink); border-color: var(--muted); }
+.scenes button.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.caption { font: 600 18px/1.3 var(--display); letter-spacing: -0.01em; text-wrap: balance; min-height: 1.3em; }
+.caption b { color: var(--accent); margin-right: 10px; font-family: var(--mono); font-size: 15px; }
 
-  .timeline { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--panel); }
-  .ev { display: grid; grid-template-columns: 74px 104px minmax(0, 1fr); gap: 12px; align-items: start; padding: 12px 14px; border-bottom: 1px solid var(--line); }
-  .ev:last-child { border-bottom: 0; }
-  .ev.now { background: var(--info-bg); }
-  .ev time { font-family: var(--mono); font-size: 12px; color: var(--muted); padding-top: 2px; }
-  .pill { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding: 3px 8px; border-radius: 6px; justify-self: start; background: var(--bar); color: var(--ink); }
-  .p-decision, .p-agent { background: var(--info-bg); color: var(--info); }
-  .p-collect, .p-vic, .p-mandate, .p-settle, .p-statement { background: var(--good-bg); color: var(--good); }
-  .p-refused, .p-escalate, .p-collect_refused { background: var(--bad-bg); color: var(--bad); }
-  .p-credit, .p-dispute, .p-books { background: var(--warn-bg); color: var(--warn); }
-  .p-proof { background: var(--ink); color: var(--bg); }
-  .p-policy { background: var(--accent); color: var(--accent-ink); }
-  .sum { font-size: 14px; min-width: 0; overflow-wrap: anywhere; }
-  .who { display: block; font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px; }
-  .ev.agent .text { font-style: italic; border-left: 3px solid var(--info); padding-left: 10px; }
-  .ids { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px 12px; }
-  .ids a { text-decoration: none; }
-  .ids a:hover { text-decoration: underline; }
-  .detail { margin-top: 8px; font-size: 13px; color: var(--muted); display: grid; gap: 4px; }
-  .detail q { color: var(--ink); }
-  .empty { color: var(--muted); padding: 20px; text-align: center; }
-  footer { border-top: 1px solid var(--line); }
-  footer .wrap { padding-block: 18px 28px; color: var(--muted); font-size: 13px; display: grid; gap: 6px; }
+/* ── main grid ──────────────────────────────────────────── */
+main.grid { display: grid; grid-template-columns: minmax(300px, 410px) minmax(0, 1fr); gap: 24px; padding-block: 20px 36px; }
+h2.sec { font: 600 12px var(--sans); text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); margin: 0 0 12px; }
 
-  @media (max-width: 900px) {
-    .intro, main.grid { grid-template-columns: minmax(0, 1fr); }
-  }
-  @media (max-width: 600px) {
-    .ev { grid-template-columns: minmax(0, 1fr); gap: 4px; }
-    .intro h1 { font-size: 23px; }
-    .caption { font-size: 15px; }
-  }
-  @media (prefers-reduced-motion: reduce) { .bar i { transition: none; } }
+/* buyer cards */
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 18px; margin-bottom: 16px; box-shadow: var(--shadow); }
+.row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.who-av { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.av { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; font: 700 16px var(--display); color: #fff; flex: none; }
+.name { font: 600 17px var(--display); letter-spacing: -0.01em; }
+.addr { font: 500 12px var(--mono); color: var(--muted); }
+.badge { font: 700 12px var(--sans); padding: 4px 10px; border-radius: 999px; white-space: nowrap; letter-spacing: 0.02em; }
+.NET_30 { background: var(--good-bg); color: var(--good); }
+.NET_7 { background: var(--warn-bg); color: var(--warn); }
+.PREPAY, .none { background: var(--bad-bg); color: var(--bad); }
+.limit { margin: 14px 0 6px; display: flex; align-items: baseline; gap: 10px; }
+.limit .big { font: 700 32px var(--display); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.limit .lbl { color: var(--muted); font-size: 13px; }
+.bar { position: relative; height: 8px; background: var(--bar); border-radius: 999px; overflow: hidden; }
+.bar i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 70%, #ffb347)); border-radius: 999px; transition: width 0.5s ease; }
+.legend2 { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); margin-top: 6px; font-variant-numeric: tabular-nums; }
+
+/* credit ladder */
+.ladder { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; margin: 16px 0 4px; }
+.rung { position: relative; text-align: center; font: 600 11px var(--sans); color: var(--muted); padding: 8px 2px 6px; border-radius: 9px; background: var(--panel-2); border: 1px solid var(--line); transition: all 0.35s; }
+.rung small { display: block; font: 500 10px var(--sans); opacity: 0.8; margin-top: 1px; }
+.rung.past { color: var(--ink); border-color: color-mix(in srgb, var(--good) 45%, var(--line)); }
+.rung.past::after { content: "✓"; position: absolute; top: 3px; right: 6px; font-size: 10px; color: var(--good); }
+.rung.now { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); box-shadow: 0 6px 16px -8px var(--accent); transform: translateY(-2px); }
+.rung.blocked { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 40%, var(--line)); background: var(--bad-bg); }
+
+dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 14px; margin: 14px 0 0; font-size: 13px; }
+dt { color: var(--muted); }
+dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.why { margin: 12px 0 0; padding: 0; list-style: none; font-size: 13px; }
+.why li { padding: 6px 0; border-top: 1px dashed var(--line); color: var(--muted); }
+.why li b { color: var(--ink); font-weight: 600; }
+.tag { font-size: 11px; padding: 2px 7px; border-radius: 6px; background: var(--warn-bg); color: var(--warn); font-weight: 600; }
+.tag.t0 { background: var(--info-bg); color: var(--info); }
+
+/* proof */
+.proof { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; margin-bottom: 16px; box-shadow: var(--shadow); position: relative; overflow: hidden; }
+.proof .head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.proof .head b { font: 700 19px var(--display); letter-spacing: -0.01em; }
+.proof.sweep::before { content: ""; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--good) 18%, transparent) 50%, transparent 70%); transform: translateX(-100%); animation: sweep 1.2s ease forwards; pointer-events: none; }
+@keyframes sweep { to { transform: translateX(100%); } }
+.ok { color: var(--good); } .bad { color: var(--bad); }
+.proof ul { list-style: none; margin: 10px 0 0; padding: 0; font-size: 13px; display: grid; gap: 6px; }
+.proof li small { color: var(--muted); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.proof details { font-size: 13px; padding: 3px 0; }
+.proof summary { cursor: pointer; }
+.proof details ul { margin: 4px 0 6px 20px; }
+.try { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line); font-size: 13px; }
+.try b { display: block; margin-bottom: 8px; }
+.try .btn { margin: 0 6px 6px 0; font-size: 12px; }
+.try output { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; min-height: 1em; }
+
+/* event log */
+.timeline { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 16px; overflow: hidden; background: var(--panel); box-shadow: var(--shadow); }
+.ev { display: grid; grid-template-columns: 30px 66px minmax(0, 1fr); gap: 12px; align-items: start; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.ev:last-child { border-bottom: 0; }
+.ev.now { background: color-mix(in srgb, var(--info-bg) 70%, transparent); animation: arrive 0.6s ease; }
+@keyframes arrive { from { opacity: 0; transform: translateY(-6px); } }
+.ev .ico { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; }
+.ev .ico svg { width: 17px; height: 17px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.ev time { font: 500 12px var(--mono); color: var(--muted); padding-top: 6px; }
+.sum { font-size: 14px; min-width: 0; overflow-wrap: anywhere; }
+.who { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px; }
+.pill { font: 700 10px var(--sans); text-transform: uppercase; letter-spacing: 0.06em; padding: 2px 7px; border-radius: 6px; }
+.ev.agent .text { font-style: italic; border-left: 3px solid var(--claude); padding-left: 10px; }
+.ids { font: 500 12px var(--mono); color: var(--muted); margin-top: 5px; display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.ids a { text-decoration: none; }
+.ids a:hover { text-decoration: underline; }
+.detail { margin-top: 8px; font-size: 13px; color: var(--muted); display: grid; gap: 4px; }
+.detail q { color: var(--ink); }
+.scene-row { padding: 10px 14px; background: var(--panel-2); border-bottom: 1px solid var(--line); font: 600 13px var(--display); display: flex; gap: 10px; align-items: baseline; }
+.scene-row b { color: var(--accent); font-family: var(--mono); font-size: 12px; }
+.empty { color: var(--muted); padding: 22px; text-align: center; }
+
+/* per-type tints */
+.t-collect, .t-mandate, .t-statement, .t-settle { color: var(--metal); background: var(--good-bg); }
+.t-vic { color: var(--visa); background: color-mix(in srgb, var(--visa) 14%, transparent); }
+.t-refused, .t-escalate, .t-collect_refused { color: var(--bad); background: var(--bad-bg); }
+.t-credit, .t-dispute { color: var(--warn); background: var(--warn-bg); }
+.t-agent { color: var(--claude); background: color-mix(in srgb, var(--claude) 14%, transparent); }
+.t-policy { color: var(--accent-ink); background: var(--accent); }
+.t-books { color: var(--t0); background: var(--info-bg); }
+.t-decision, .t-order { color: var(--info); background: var(--info-bg); }
+.t-proof { color: var(--bg); background: var(--ink); }
+
+/* intro + footer */
+.intro { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 24px; padding-block: 22px 6px; align-items: start; }
+.intro h1 { font: 700 34px/1.12 var(--display); letter-spacing: -0.03em; margin: 0 0 12px; text-wrap: balance; }
+.intro h1 em { font-style: normal; color: var(--accent); }
+.intro p { margin: 0 0 10px; max-width: 66ch; color: var(--muted); }
+.intro p strong { color: var(--ink); }
+.labelled { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; font-size: 13px; box-shadow: var(--shadow); }
+.labelled h2 { font: 600 12px var(--sans); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0 0 8px; }
+.labelled ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+footer { border-top: 1px solid var(--line); }
+footer .wrap { padding-block: 18px 30px; color: var(--muted); font-size: 13px; display: grid; gap: 6px; }
+
+@media (max-width: 960px) {
+  main.grid, .intro { grid-template-columns: minmax(0, 1fr); }
+  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .player { position: static; }
+  .ev { grid-template-columns: 30px minmax(0, 1fr); }
+  .ev time { display: none; }
+  .intro h1 { font-size: 26px; }
+  .kpi .v { font-size: 24px; }
+  .caption { font-size: 15px; }
+  .brand .word { font-size: 24px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* live vs replay */
+body.is-live .replay-only { display: none !important; }
+body.is-live .intro { padding-block: 16px 0; }
+body.is-live .intro p { margin-bottom: 4px; }
+
 </style>
 </head>
 <body>
 <header class="top">
   <div class="wrap">
-    <div class="brand"><b>TAB<span>.</span></b><small>Net terms for AI agents · Northwind Data's credit desk</small></div>
-    <div class="rails">
-      <span class="rail">Claude: policy, buyer agents, disputes</span>
-      <span class="rail">Metal testnet: debit mandates</span>
-      <span class="rail">Visa Intelligent Commerce via Airi</span>
-      <span class="rail">Airwallex sandbox</span>
-      <span class="rail">T:0 sandbox</span>
+    <div class="brand">
+      <svg id="mark" class="mark" viewBox="0 0 64 64" role="img" aria-label="TAB logo: a buyer's tab, paid later, landing as a check">
+        <path class="ink" fill="none" stroke-width="4.5" stroke-linejoin="round" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100"
+              d="M9 23a6 6 0 0 1 6-6h10.6a4 4 0 0 1 3.1 1.5L32.5 23H49a6 6 0 0 1 6 6v20a6 6 0 0 1-6 6H15a6 6 0 0 1-6-6Z">
+          <animate attributeName="stroke-dashoffset" from="100" to="0" begin="0s" dur="0.8s" fill="freeze" calcMode="spline" keySplines="0.4 0 0.2 1" keyTimes="0;1"/>
+        </path>
+        <circle class="coin" r="3.4" cx="0" cy="0" opacity="0">
+          <animateMotion begin="0.55s" dur="0.75s" fill="freeze" calcMode="spline" keySplines="0.5 0 0.3 1" keyTimes="0;1" path="M4 4 C 14 -4, 20 20, 22 38"/>
+          <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.15;0.85;1" begin="0.55s" dur="0.8s" fill="freeze"/>
+        </circle>
+        <path class="acc" fill="none" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100" d="M22 38l7 7 14-15">
+          <animate attributeName="stroke-dashoffset" from="100" to="0" begin="1.25s" dur="0.45s" fill="freeze" calcMode="spline" keySplines="0.3 0 0.2 1" keyTimes="0;1"/>
+        </path>
+      </svg>
+      <div><div class="word">TAB<span>.</span></div><span class="sub">Net terms for AI agents · Northwind Data's credit desk</span></div>
     </div>
+    <span class="mode" id="mode"><i></i>Desk</span>
   </div>
 </header>
 
-<section class="wrap intro">
+<section class="wrap intro" id="intro">
   <div>
-    <h1>AI agents buy on credit. The desk still gets every dollar, and proves it.</h1>
-    <p>This is a recording of one live run, <strong id="runId"></strong>, played back event by event. Northwind Data sells to buyer agents on terms: Claude runs the agents and reads the messy text, and code decides every price, limit, credit and collection.</p>
-    <p>Each <strong>Metal transaction links to the public testnet explorer</strong>, so you can check it yourself. Airwallex and T:0 ids come from private sandboxes; the desk's checker read each one back after the run.</p>
+    <h1>AI agents buy on credit. <em>The desk still gets every dollar, and proves it.</em></h1>
+    <p>Every other agent-payments project teaches agents to hear "no". TAB says "yes, pay later". Northwind Data sells to buyer agents on terms: <strong>Claude</strong> runs the agents and reads the messy text, <strong>code</strong> decides every price, limit, credit and collection, and <strong>Metal, Visa via Airi, Airwallex and T:0</strong> move and record the money.</p>
+    <p class="replay-only">This is one live run, <strong id="runId"></strong>, played back event by event. Each Metal transaction links to the public testnet explorer; Airwallex and T:0 ids come from private sandboxes that the desk's checker read back after the run.</p>
   </div>
   <aside class="labelled" aria-label="What is labelled">
     <h2>Labelled, not hidden</h2>
@@ -171,17 +287,28 @@
   </aside>
 </section>
 
+<section class="wrap kpis" aria-label="Headline numbers">
+  <div class="kpi"><div class="v" id="k-terms">$0.00</div><div class="l">Put on terms</div></div>
+  <div class="kpi"><div class="v" id="k-collected">$0.00</div><div class="l">Collected</div></div>
+  <div class="kpi refused"><div class="v" id="k-refused">0</div><div class="l">Refused on chain</div></div>
+  <div class="kpi proof"><div class="v" id="k-proof">—</div><div class="l">Proof checks</div></div>
+</section>
+
+<section class="wrap rails" aria-label="Rails map">
+  <div class="railcard"><div id="rails"></div><div class="legend" id="railstats"></div></div>
+</section>
+
 <section class="player" aria-label="Replay controls">
   <div class="wrap">
-    <div class="controls">
-      <button id="restart" type="button" aria-label="Back to the start">⏮ Start</button>
-      <button id="back" type="button" aria-label="Previous event">◀</button>
-      <button id="play" class="primary" type="button">▶ Play</button>
-      <button id="fwd" type="button" aria-label="Next event">▶</button>
-      <select id="speed" aria-label="Playback speed">
-        <option value="2200">1×</option>
+    <div class="controls replay-only">
+      <button class="btn" id="restart" type="button" aria-label="Back to the start">⏮ Start</button>
+      <button class="btn" id="back" type="button" aria-label="Previous event">◀</button>
+      <button class="btn primary" id="play" type="button">▶ Play</button>
+      <button class="btn" id="fwd" type="button" aria-label="Next event">▶</button>
+      <select class="btn" id="speed" aria-label="Playback speed">
+        <option value="1800">1×</option>
         <option value="1100" selected>2×</option>
-        <option value="500">4×</option>
+        <option value="600">4×</option>
       </select>
       <div class="progress"><input id="scrub" type="range" min="0" value="0" aria-label="Event position"><output id="pos"></output></div>
     </div>
@@ -197,109 +324,391 @@
 
 <footer>
   <div class="wrap">
-    <div>Recorded <span id="ranAt"></span>. Times are the desk's own event times (UTC shown in your local time zone).</div>
+    <div><span class="replay-only">Recorded <span id="ranAt"></span>. </span><span id="source"></span> Times are the desk's own event times, shown in your time zone.</div>
     <div>TAB · Airwallex Agentic Banking Hackathon · team Four Eyes, One Human</div>
   </div>
 </footer>
-
-<script type="application/json" id="run">{"run":"rmwavgb3a","ranAt":"2026-11-10T15:55:57.453Z","buyers":[{"id":"acme","name":"Acme procurement agent","account":"0x4d0a5161AbA00FB71397675a1919163d6e7cEd33"},{"id":"globex","name":"Globex sourcing agent","account":"0xF6282AAD66B0dD563c714aad5E1D24019C1598C5"},{"id":"initech","name":"Initech buying agent","account":"0x0000000000000000000000000000000000000001"}],"scenes":[{"key":"1","title":"Acme: its earlier Visa payment is verified against Airwallex; its human binds a $400 credit line","firstSeq":1},{"key":"1b","title":"Northwind's CFO types this quarter's goals; Claude compiles them, code checks them, the desk dry-runs them","firstSeq":5},{"key":"2","title":"Acme's agent (Claude) shops and chooses how to pay","firstSeq":9},{"key":"3","title":"Globex is new to Northwind: no Metal terms yet, but a Visa authorisation can secure a short tab","firstSeq":15},{"key":"3b","title":"Before the due date, Northwind's delivery QA flags one 1,000-row batch as stale: a credit note","firstSeq":20},{"key":"3c","title":"Due (compressed for the video): capture only the undisputed amount; the rest of the hold lapses","firstSeq":21},{"key":"3d","title":"A settled Visa payment on record: Globex now qualifies for Metal terms, and its agent re-plans","firstSeq":22},{"key":"4","title":"Initech's books show an overdue invoice: prepay only, and orders for terms it is not offered are refused","firstSeq":25},{"key":"5","title":"Acme disputes stale data; the model reads, code decides, before anything is collected","firstSeq":27},{"key":"5b","title":"Mid-book, with tabs open, the CFO caps any single buyer's credit; the dry run shows what it costs, then the desk collects the excess on chain","firstSeq":29},{"key":"6","title":"Acme's statement becomes its own Metal mandate; the chain enforces the terms","firstSeq":34},{"key":"6b","title":"Try to collect early","firstSeq":35},{"key":"6c","title":"Collect on time, then try to double-charge with a fresh payment id","firstSeq":36},{"key":"7","title":"Globex's human cuts the credit line to $85.00; the desk collects the tab before it's gone","firstSeq":39},{"key":"8","title":"Settle every collection into Airwallex, convert to SGD, book in T:0 where the customer lives there","firstSeq":43},{"key":"9","title":"Every dollar proven","firstSeq":49}],"events":[{"seq":1,"at":"2026-11-10T15:55:57.453Z","buyerId":"acme","type":"vic","summary":"Visa-verified payment $186.00 checked against Airwallex (statement STM-20261109-E5DP) → counts toward terms","data":{"paymentIntentId":"int_sgpvtdh4nhnzlj965wb","airiMandateId":"mdt_sgpdvzqsghnzlj9vq2w","statementId":"STM-20261109-E5DP","statementHash":"0b5a592867e7e8abd004d634394e0fa680ba5e48068aca3fe3598e0d88569125","checks":{"succeeded":true,"captured":true,"statement":true,"hash":true}},"scene":"1"},{"seq":2,"at":"2026-11-10T15:55:58.451Z","buyerId":"acme","type":"books","summary":"books (T:0): 3 of 3 invoices paid on time · T:0 customer \"Zephyr Metrics AB\"","data":{"source":"t0","customer":"t0_customer_prod_e9882b26f7979f04d28e"},"scene":"1"},{"seq":3,"at":"2026-11-10T15:56:02.945Z","buyerId":"acme","type":"mandate","summary":"buyer's human bound a debit mandate: budget $400.00","data":{"mandateId":"0x7d1de89b15785d0d671cc265fb13817a533df302f06b7a1a2ce6f1620d57cd0e","tx":"0x355e2911f04cd1faeac72bb6053c83c0cabfc1a848f35bebc0e5a268c55b26e1","budget":40000},"scene":"1"},{"seq":4,"at":"2026-11-10T15:56:04.840Z","buyerId":"acme","type":"decision","summary":"NET_30 · limit $261.55 · available $261.55","data":{"decision":{"buyerId":"acme","terms":"NET_30","limit":26155,"available":26155,"collectNow":0,"collectMax":26155,"escalate":0,"reasons":[{"code":"NET_30_EARNED","detail":"3/3 invoices paid on time"},{"code":"LIMIT_BY_ONCHAIN_BALANCE","detail":"buyer balance $261.55"}]},"inputs":{"mandate":{"id":"0x7d1de89b15785d0d671cc265fb13817a533df302f06b7a1a2ce6f1620d57cd0e","budget":40000,"spent":0,"revoked":false},"balance":26155,"booksSource":"t0","invoices":3}},"scene":"1"},{"seq":5,"at":"2026-11-10T15:56:18.826Z","buyerId":"desk","type":"refused","summary":"policy not applied: it does not verify under the CFO's key (content or signature changed after signing; signed hash 0x03b3c6bb48…, policy numbers now hash to 0x6d44e2e356…)","data":{"signedHash":"0x03b3c6bb485e48d9a47a8cc460ad7e873ab2a99e725f0836f7dae207e401288e","actualHash":"0x6d44e2e35617b3cfa777ed34df06f5e46e4ffa3bb92080967163fdde4bdb766a"},"scene":"1b"},{"seq":6,"at":"2026-11-10T15:56:18.827Z","buyerId":"desk","type":"policy","summary":"CFO policy signed and applied: net-30 limit $900.00 → $350.00; early-pay discount 2% → 3% · not expressible: give our best customers net-90","data":{"hash":"0x03b3c6bb485e48d9a47a8cc460ad7e873ab2a99e725f0836f7dae207e401288e","signature":"6PhBK8sXw-hWMcGEii_FuZXvSinel_pws9iR1vxuNe2tZmbyfRbqtyDm5n0egiYa4EvD6RWi2cis8lktLNcu-Q","kid":"gkMMd5cJjEIT2cWLmXMUXiMTWKVWCxPGSVGSxL8XnH8","goals":"Cash is tight this quarter, so we want to be paid faster: offer 3% off to any buyer who pays within 10 days. Keep net-30 for buyers with a clean record, but no single buyer above $350 on credit. And give our best customers net-90.","accepted":[{"field":"net30Limit","from":90000,"to":35000,"cfoWords":"Keep net-30 for buyers with a clean record, but no single buyer above $350 on credit."},{"field":"earlyPayDiscount","from":0.02,"to":0.03,"cfoWords":"offer 3% off to any buyer who pays within 10 days"}],"rejected":[],"notCompiled":[{"goal":"give our best customers net-90","why":"The policy has no net-90 tier or term-length field, and it cannot be approximated with another field."}],"diff":[{"buyerId":"acme","name":"Acme procurement agent","before":{"terms":"NET_30","limit":26155},"after":{"terms":"NET_30","limit":26155},"outstanding":0,"wouldCollect":0},{"buyerId":"globex","name":"Globex sourcing agent","before":{"terms":"PREPAY","limit":0},"after":{"terms":"PREPAY","limit":0},"outstanding":0,"wouldCollect":0},{"buyerId":"initech","name":"Initech buying agent","before":{"terms":"PREPAY","limit":0},"after":{"terms":"PREPAY","limit":0},"outstanding":0,"wouldCollect":0}],"model":"claude-opus-5-5"},"scene":"1b"},{"seq":7,"at":"2026-11-10T15:56:23.026Z","buyerId":"globex","type":"decision","summary":"PREPAY · limit $0.00 · available $0.00","data":{"decision":{"buyerId":"globex","terms":"PREPAY","limit":0,"available":0,"collectNow":0,"collectMax":0,"escalate":0,"reasons":[{"code":"NO_MANDATE","detail":"buyer has not bound a debit mandate"},{"code":"NO_VIC_HISTORY","detail":"no settled VIC payment yet; prepay first"}]},"inputs":{"balance":10000,"booksSource":"standin","invoices":0}},"scene":"1b"},{"seq":8,"at":"2026-11-10T15:56:23.209Z","buyerId":"initech","type":"decision","summary":"PREPAY · limit $0.00 · available $0.00","data":{"decision":{"buyerId":"initech","terms":"PREPAY","limit":0,"available":0,"collectNow":0,"collectMax":0,"escalate":0,"reasons":[{"code":"NO_MANDATE","detail":"buyer has not bound a debit mandate"},{"code":"OVERDUE_INVOICE","detail":"INV-3002 is 23 days overdue ($400.00)"},{"code":"NO_VIC_HISTORY","detail":"no settled VIC payment yet; prepay first"}]},"inputs":{"balance":0,"booksSource":"standin","invoices":2}},"scene":"1b"},{"seq":9,"at":"2026-11-10T15:56:42.564Z","buyerId":"acme","type":"order","summary":"ord-mwavhqro-1 Market data queries · 2000 query: $77.60 → 3% off, due in 10 days, on the tab","data":{"order":{"id":"ord-mwavhqro-1","amount":7760,"description":"Market data queries · 2000 query","placedAt":"2026-11-10T15:56:42.564Z","route":"ON_TAB","productId":"mkt-queries","units":2000,"unitPrice":4,"priceRoute":"/v2/query","option":"pay_in_10_discount","discount":0.03,"dueAt":"2026-11-20T15:56:42.564Z","staleUnits":200,"credited":776,"collectedBy":"0xc72689e890c1cea4f028945cc7797f9f07ed5530bd4fb6a159ca110e53acdb0b"},"note":null},"scene":"2"},{"seq":10,"at":"2026-11-10T15:56:43.652Z","buyerId":"acme","type":"decision","summary":"NET_30 · limit $261.55 · available $183.95","data":{"decision":{"buyerId":"acme","terms":"NET_30","limit":26155,"available":18395,"collectNow":0,"collectMax":26155,"escalate":0,"reasons":[{"code":"NET_30_EARNED","detail":"3/3 invoices paid on time"},{"code":"LIMIT_BY_ONCHAIN_BALANCE","detail":"buyer balance $261.55"}]},"inputs":{"mandate":{"id":"0x7d1de89b15785d0d671cc265fb13817a533df302f06b7a1a2ce6f1620d57cd0e","budget":40000,"spent":0,"revoked":false},"balance":26155,"booksSource":"t0","invoices":3}},"scene":"2"},{"seq":11,"at":"2026-11-10T15:56:43.654Z","buyerId":"acme","type":"order","summary":"ord-mwavhrly-2 FX tick backfill · 10 1,000 rows: $116.40 → 3% off, due in 10 days, on the tab","data":{"order":{"id":"ord-mwavhrly-2","amount":11640,"description":"FX tick backfill · 10 1,000 rows","placedAt":"2026-11-10T15:56:43.654Z","route":"ON_TAB","productId":"fx-backfill","units":10,"unitPrice":1200,"priceRoute":"/v2/backfill","option":"pay_in_10_discount","discount":0.03,"dueAt":"2026-11-20T15:56:43.654Z","collectedBy":"0xc72689e890c1cea4f028945cc7797f9f07ed5530bd4fb6a159ca110e53acdb0b"},"note":null},"scene":"2"},{"seq":12,"at":"2026-11-10T15:56:44.119Z","buyerId":"acme","type":"decision","summary":"NET_30 · limit $261.55 · available $67.55","data":{"decision":{"buyerId":"acme","terms":"NET_30","limit":26155,"available":6755,"collectNow":0,"collectMax":26155,"escalate":0,"reasons":[{"code":"NET_30_EARNED","detail":"3/3 invoices paid on time"},{"code":"LIMIT_BY_ONCHAIN_BALANCE","detail":"buyer balance $261.55"}]},"inputs":{"mandate":{"id":"0x7d1de89b15785d0d671cc265fb13817a533df302f06b7a1a2ce6f1620d57cd0e","budget":40000,"spent":0,"revoked":false},"balance":26155,"booksSource":"t0","invoices":3}},"scene":"2"},{"seq":13,"at":"2026-11-10T15:56:44.120Z","buyerId":"acme","type":"order","summary":"ord-mwavhryw-3 Priority SLA · 1 day: $24.25 → 3% off, due in 10 days, on the tab","data":{"order":{"id":"ord-mwavhryw-3","amount":2425,"description":"Priority SLA · 1 day","placedAt":"2026-11-10T15:56:44.120Z","route":"ON_TAB","productId":"sla-day","units":1,"unitPrice":2500,"priceRoute":"/v2/sla","option":"pay_in_10_discount","discount":0.03,"dueAt":"2026-11-20T15:56:44.120Z","collectedBy":"0xd5ebfb6a9cc6638c8d9badb20c0b0aa261b00b540303e3fae47f583f973d9b1a"},"note":null},"scene":"2"},{"seq":14,"at":"2026-11-10T15:56:46.919Z","buyerId":"acme","type":"agent","summary":"Acme procurement agent: I bought everything the Q4 pricing model refresh needs from Northwind: 2,000 market-data queries, 10,000 rows of FX tick backfill and one day of priority SLA, for $218.25 in total, which is within our $250 per-order limit and $500 monthly budget. All three orders are on our tab with the 3% early-payment discount, so about $218 will be collected from our account on November 20, 10 days from now. Paying 20 days earlier than the free 30-day option saves $6.75, which works out to about 56% a year, far more than our 12% cost of capital or the 4% our idle cash earns, and cash is comfortable this month.","data":{"model":"claude-opus-5-5","orders":["ord-mwavhqro-1","ord-mwavhrly-2","ord-mwavhryw-3"],"refusals":[],"toolCalls":8},"scene":"2"},{"seq":15,"at":"2026-11-10T15:56:51.400Z","buyerId":"globex","type":"mandate","summary":"buyer's human bound a debit mandate: budget $90.00","data":{"mandateId":"0x0c70037ef3d93a26e8a7250f1c963d4ac76abf6932a35d9a791f09c3b5e1c504","tx":"0x20d2f3191cea8dc1eb3b27e460f174ea3fdca67011ff25137af2509683b48e00","budget":9000},"scene":"3"},{"seq":16,"at":"2026-11-10T15:56:56.236Z","buyerId":"globex","type":"decision","summary":"PREPAY · limit $0.00 · available $0.00","data":{"decision":{"buyerId":"globex","terms":"PREPAY","limit":0,"available":0,"collectNow":0,"collectMax":9000,"escalate":0,"reasons":[{"code":"NO_VIC_HISTORY","detail":"no settled VIC payment yet; prepay first"}]},"inputs":{"mandate":{"id":"0x0c70037ef3d93a26e8a7250f1c963d4ac76abf6932a35d9a791f09c3b5e1c504","budget":9000,"spent":0,"revoked":false},"balance":10000,"booksSource":"standin","invoices":0}},"scene":"3"},{"seq":17,"at":"2026-11-10T15:57:08.652Z","buyerId":"globex","type":"order","summary":"ord-mwaviawc-1 FX tick backfill · 5 1,000 rows: $60.00 → 7-day tab secured by a Visa authorisation","data":{"order":{"id":"ord-mwaviawc-1","amount":6000,"description":"FX tick backfill · 5 1,000 rows","placedAt":"2026-11-10T15:57:08.652Z","route":"CARD_AUTH","productId":"fx-backfill","units":5,"unitPrice":1200,"priceRoute":"/v2/backfill","option":"card_net_7","discount":0,"dueAt":"2026-11-17T15:57:08.652Z","card":{"paymentIntentId":"int_sgpvfdzq7ho1a3akbg7","airiMandateId":"mdt_sgpdll5pnho1a3b2vki","statementId":"STM-rmwavgb3a-G1","authorised":6000,"captured":4800},"credited":1200,"collectedBy":"card:int_sgpvfdzq7ho1a3akbg7"},"note":null},"scene":"3"},{"seq":18,"at":"2026-11-10T15:57:11.977Z","buyerId":"globex","type":"agent","summary":"Globex sourcing agent: I bought 5,000 rows of FX tick backfill from Northwind for $60.00 (5 units at $12 per 1,000 rows), order ord-mwaviawc-1. That is well inside our $200 per-order limit and $400 monthly budget, and I bought nothing else because nothing else was asked for. I'm paying on Northwind's 7-day card tab: our Visa card is authorised now and charged on 17 November 2026, and only for amounts we haven't disputed. Paying now by card was the only other option, at the same $60, and Northwind offered no net-30 or early-payment discount because we have no settled payment with them yet. Paying later at no extra cost is the best choice when our borrowing costs 45% a year.","data":{"model":"claude-opus-5-5","orders":["ord-mwaviawc-1"],"refusals":[],"toolCalls":4},"scene":"3"},{"seq":19,"at":"2026-11-10T15:57:36.772Z","buyerId":"globex","type":"vic","summary":"Visa authorisation $60.00 holds the tab for 1 order(s) (statement STM-rmwavgb3a-G1, checked against Airwallex: authorised, not captured)","data":{"paymentIntentId":"int_sgpvfdzq7ho1a3akbg7","airiMandateId":"mdt_sgpdll5pnho1a3b2vki","statementId":"STM-rmwavgb3a-G1","statementHash":"0x7ff4604cabf395e8540abbc851f7feab1a560fb7c9a611f175056742165c5bce","checks":{"authorised":true,"amount":true,"statement":true,"hash":true},"orderIds":["ord-mwaviawc-1"]},"scene":"3"},{"seq":20,"at":"2026-11-10T15:57:37.575Z","buyerId":"globex","type":"credit","summary":"credit note $12.00 on ord-mwaviawc-1: delivery QA: one 1,000-row batch had stale ticks (reduces what is owed on the tab)","data":{"orderId":"ord-mwaviawc-1","amount":1200,"reason":"delivery QA: one 1,000-row batch had stale ticks","collected":false,"staleUnits":1},"scene":"3b"},{"seq":21,"at":"2026-11-10T15:57:38.885Z","buyerId":"globex","type":"vic","summary":"captured $48.00 of the $60.00 authorised: only the undisputed amount; the rest of the hold lapses (checked against Airwallex) → counts toward terms","data":{"paymentIntentId":"int_sgpvfdzq7ho1a3akbg7","captured":4800,"authorised":6000,"orderIds":["ord-mwaviawc-1"],"checks":{"succeeded":true,"capturedOwed":true}},"scene":"3c"},{"seq":22,"at":"2026-11-10T15:57:44.959Z","buyerId":"globex","type":"decision","summary":"NET_7 · limit $90.00 · available $90.00","data":{"decision":{"buyerId":"globex","terms":"NET_7","limit":9000,"available":9000,"collectNow":0,"collectMax":9000,"escalate":0,"reasons":[{"code":"NET_7_DEFAULT","detail":"0/0 on time; net-30 needs 3 at ≥90%"},{"code":"LIMIT_BY_MANDATE_HEADROOM","detail":"mandate headroom $90.00"}]},"inputs":{"mandate":{"id":"0x0c70037ef3d93a26e8a7250f1c963d4ac76abf6932a35d9a791f09c3b5e1c504","budget":9000,"spent":0,"revoked":false},"balance":10000,"booksSource":"standin","invoices":0}},"scene":"3d"},{"seq":23,"at":"2026-11-10T15:57:56.549Z","buyerId":"globex","type":"order","summary":"ord-mwavjbut-2 Market data queries · 2000 query: $80.00 → net-7 on the tab","data":{"order":{"id":"ord-mwavjbut-2","amount":8000,"description":"Market data queries · 2000 query","placedAt":"2026-11-10T15:57:56.549Z","route":"ON_TAB","productId":"mkt-queries","units":2000,"unitPrice":4,"priceRoute":"/v2/query","option":"net_7","discount":0,"dueAt":"2026-11-17T15:57:56.549Z","collectedBy":"0xd073c3b4ec005cc9ba3c96dbacd6abeca1bb1014a250de26d6ce49b1bd3e3d21"},"note":null},"scene":"3d"},{"seq":24,"at":"2026-11-10T15:57:59.694Z","buyerId":"globex","type":"agent","summary":"Globex sourcing agent: I bought 2,000 market-data queries from Northwind for $80.00 (order ord-mwavjbut-2). That fits within our $200 per-order limit and $400 monthly budget, and it is our only spend this month. I put it on our Northwind tab on net-7 terms, so the $80.00 is due on 17 November 2026. Paying now by card cost the same with no discount, so with borrowing at 45% a year it made sense to pay later; Northwind didn't offer net-30 or an early-payment discount, because they only give net-30 after three on-time payments.","data":{"model":"claude-opus-5-5","orders":["ord-mwavjbut-2"],"refusals":[],"toolCalls":4},"scene":"3d"},{"seq":25,"at":"2026-11-10T15:58:01.353Z","buyerId":"initech","type":"refused","summary":"order refused: option \"net_30\" is not on offer for this order (prepay by card unavailable: over the $200 per-transaction card cap (orders are never split); no credit terms: buyer has not bound a debit mandate; INV-3002 is 23 days overdue ($400.00); no settled VIC payment yet; prepay first)","data":{"req":{"productId":"sla-day","units":10,"option":"net_30"},"offered":[]},"scene":"4"},{"seq":26,"at":"2026-11-10T15:58:02.047Z","buyerId":"initech","type":"refused","summary":"order refused: option \"prepay_card\" is not on offer for this order (prepay by card unavailable: over the $200 per-transaction card cap (orders are never split); no credit terms: buyer has not bound a debit mandate; INV-3002 is 23 days overdue ($400.00); no settled VIC payment yet; prepay first)","data":{"req":{"productId":"sla-day","units":9,"option":"prepay_card"},"offered":[]},"scene":"4"},{"seq":27,"at":"2026-11-10T15:58:07.376Z","buyerId":"acme","type":"credit","summary":"credit note $7.76 on ord-mwavhqro-1: 200 stale unit(s) confirmed by delivery QA × 3.88¢ charged per unit (reduces what is owed on the tab)","data":{"orderId":"ord-mwavhqro-1","amount":776,"reason":"200 stale unit(s) confirmed by delivery QA × 3.88¢ charged per unit","collected":false,"staleUnits":200},"scene":"5"},{"seq":28,"at":"2026-11-10T15:58:07.377Z","buyerId":"acme","type":"dispute","summary":"dispute resolved: $7.76 credited, 3 claim(s) declined with the order record as proof, 0 to a person","data":{"summary":"Priya (Finance, Acme) makes two claims. First, she disputes the prices charged. She does not name specific orders, so all three listed orders are included. Second, she says all 2000 units in ord-mwavhqro-1 were stale, showing yesterday's values, and she asks for a refund of that order.","model":"claude-opus-5-5","findings":[{"claim":"price_not_agreed","orderId":"ord-mwavhqro-1","verdict":"upheld_for_supplier","reason":"ordered on /v2/query at 4¢/unit list × 2000, charged $77.60","proof":"order ord-mwavhqro-1 placed 2026-11-10T15:56:42.564Z"},{"claim":"price_not_agreed","orderId":"ord-mwavhrly-2","verdict":"upheld_for_supplier","reason":"ordered on /v2/backfill at 1200¢/unit list × 10, charged $116.40","proof":"order ord-mwavhrly-2 placed 2026-11-10T15:56:43.654Z"},{"claim":"price_not_agreed","orderId":"ord-mwavhryw-3","verdict":"upheld_for_supplier","reason":"ordered on /v2/sla at 2500¢/unit list × 1, charged $24.25","proof":"order ord-mwavhryw-3 placed 2026-11-10T15:56:44.120Z"},{"claim":"data_quality","orderId":"ord-mwavhqro-1","verdict":"credit","amount":776,"units":200,"reason":"200 stale unit(s) confirmed by delivery QA × 3.88¢ charged per unit"}]},"scene":"5"},{"seq":29,"at":"2026-11-10T15:58:20.995Z","buyerId":"desk","type":"policy","summary":"CFO policy signed and applied: net-7 limit $300.00 → $100.00; net-30 limit $350.00 → $100.00 · not expressible: Apply the $100 cap only until month end","data":{"hash":"0x5172aa31b632e09bd43c55686d21b71f03c1c30ae028faa67b01ec8831835aa4","signature":"ysN0Op1CvMBq2aZgWwMicSeLviF_HxAV6ER-PJUHfXxXsDuav_-eXryPMhNhKOz_L0YcnZvkv6Zk1YHSNANe6g","kid":"gkMMd5cJjEIT2cWLmXMUXiMTWKVWCxPGSVGSxL8XnH8","goals":"A large customer just failed to pay another supplier, so cut our concentration risk: until month end, no single buyer may owe us more than $100 on credit, whatever their terms. Keep the 3% early-pay discount.","accepted":[{"field":"net7Limit","from":30000,"to":10000,"cfoWords":"no single buyer may owe us more than $100 on credit, whatever their terms"},{"field":"net30Limit","from":35000,"to":10000,"cfoWords":"no single buyer may owe us more than $100 on credit, whatever their terms"}],"rejected":[],"notCompiled":[{"goal":"Apply the $100 cap only until month end","why":"The policy fields have no expiry date, so the limits stay at $100 until someone changes them back."}],"diff":[{"buyerId":"acme","name":"Acme procurement agent","before":{"terms":"NET_30","limit":26155},"after":{"terms":"NET_30","limit":10000},"outstanding":21049,"wouldCollect":18624},{"buyerId":"globex","name":"Globex sourcing agent","before":{"terms":"NET_7","limit":9000},"after":{"terms":"NET_7","limit":9000},"outstanding":8000,"wouldCollect":0},{"buyerId":"initech","name":"Initech buying agent","before":{"terms":"PREPAY","limit":0},"after":{"terms":"PREPAY","limit":0},"outstanding":0,"wouldCollect":0}],"model":"claude-opus-5-5"},"scene":"5b"},{"seq":30,"at":"2026-11-10T15:58:24.368Z","buyerId":"acme","type":"decision","summary":"NET_30 · limit $100.00 · available $0.00","data":{"decision":{"buyerId":"acme","terms":"NET_30","limit":10000,"available":0,"collectNow":11049,"collectMax":26155,"escalate":0,"reasons":[{"code":"NET_30_EARNED","detail":"3/3 invoices paid on time"},{"code":"LIMIT_BY_TERMS_CAP","detail":"NET_30 cap $100.00"},{"code":"LIMIT_TIGHTENED","detail":"$261.55 → $100.00"},{"code":"COLLECT_EXCESS","detail":"$110.49 over the limit"}]},"inputs":{"mandate":{"id":"0x7d1de89b15785d0d671cc265fb13817a533df302f06b7a1a2ce6f1620d57cd0e","budget":40000,"spent":0,"revoked":false},"balance":26155,"booksSource":"t0","invoices":3}},"scene":"5b"},{"seq":31,"at":"2026-11-10T15:58:34.306Z","buyerId":"acme","type":"collect","summary":"collected $186.24 for 2 order(s)","data":{"tx":"0xc72689e890c1cea4f028945cc7797f9f07ed5530bd4fb6a159ca110e53acdb0b","paymentId":"0x23f8aa25fa4fa74a3a79aeb288931f8c2bb9815cf2c9e6aa132f02e7ebc3c68c","orders":["ord-mwavhqro-1","ord-mwavhrly-2"],"amount":18624,"creditApplied":0},"scene":"5b"},{"seq":32,"at":"2026-11-10T15:58:37.284Z","buyerId":"acme","type":"decision","summary":"NET_30 · limit $75.31 · available $51.06","data":{"decision":{"buyerId":"acme","terms":"NET_30","limit":7531,"available":5106,"collectNow":0,"collectMax":7531,"escalate":0,"reasons":[{"code":"NET_30_EARNED","detail":"3/3 invoices paid on time"},{"code":"LIMIT_BY_ONCHAIN_BALANCE","detail":"buyer balance $75.31"},{"code":"LIMIT_TIGHTENED","detail":"$100.00 → $75.31"}]},"inputs":{"mandate":{"id":"0x7d1de89b15785d0d671cc265fb13817a533df302f06b7a1a2ce6f1620d57cd0e","budget":40000,"spent":18624,"revoked":false},"balance":7531,"booksSource":"t0","invoices":3}},"scene":"5b"},{"seq":33,"at":"2026-11-10T15:58:39.724Z","buyerId":"globex","type":"decision","summary":"NET_7 · limit $90.00 · available $10.00","data":{"decision":{"buyerId":"globex","terms":"NET_7","limit":9000,"available":1000,"collectNow":0,"collectMax":9000,"escalate":0,"reasons":[{"code":"NET_7_DEFAULT","detail":"0/0 on time; net-30 needs 3 at ≥90%"},{"code":"LIMIT_BY_MANDATE_HEADROOM","detail":"mandate headroom $90.00"}]},"inputs":{"mandate":{"id":"0x0c70037ef3d93a26e8a7250f1c963d4ac76abf6932a35d9a791f09c3b5e1c504","budget":9000,"spent":0,"revoked":false},"balance":10000,"booksSource":"standin","invoices":0}},"scene":"5b"},{"seq":34,"at":"2026-11-10T15:58:44.288Z","buyerId":"acme","type":"statement","summary":"statement STM-4502B18C $24.25 for 1 order(s) accepted by the buyer on chain: collectible once, from 2026-11-10 15:59 until 2026-11-10 16:04 UTC","data":{"statementId":"STM-4502B18C","mandateId":"0xdf8b576a0f1748802fbfa68558714c6ea7bad763ac29284d7327fc02fdfd5adf","tx":"0x143ddc2cb4faf9ac61a34a60689f3c837b39a1265791dd1191782126e810ee2a","total":2425},"scene":"6"},{"seq":35,"at":"2026-11-10T15:58:48.554Z","buyerId":"acme","type":"refused","summary":"chain refused collecting statement STM-4502B18C: mandate_outside_recurrence (refusal recorded on chain)","data":{"statementId":"STM-4502B18C","reason":"mandate_outside_recurrence","detail":"the mandate has not started yet, or its dates have ended","tx":"0x8143f9bc0ed4297e82e1900d39368ecd709f551a734f9187f4278d6c7a8948e2"},"scene":"6b"},{"seq":36,"at":"2026-11-10T16:00:05.092Z","buyerId":"acme","type":"collect","summary":"statement STM-4502B18C collected $24.25 through its own mandate","data":{"tx":"0xd5ebfb6a9cc6638c8d9badb20c0b0aa261b00b540303e3fae47f583f973d9b1a","statementId":"STM-4502B18C","paymentId":"0x4502b18cd641a0a725bafc6b5855bac90cc44a24fc8b410370fa6d53e0965d08","orders":["ord-mwavhryw-3"],"amount":2425},"scene":"6c"},{"seq":37,"at":"2026-11-10T16:00:08.361Z","buyerId":"acme","type":"refused","summary":"chain refused collecting statement STM-4502B18C: mandate_budget_spent (refusal recorded on chain)","data":{"statementId":"STM-4502B18C","reason":"mandate_budget_spent","detail":"the amount would take the mandate past its budget","tx":"0xfc3a1940669df09d7a6f9d2373c8f309826de4cba3b9c5a26537bd0db27699a2"},"scene":"6c"},{"seq":38,"at":"2026-11-10T16:00:10.725Z","buyerId":"acme","type":"decision","summary":"NET_30 · limit $51.06 · available $51.06","data":{"decision":{"buyerId":"acme","terms":"NET_30","limit":5106,"available":5106,"collectNow":0,"collectMax":5106,"escalate":0,"reasons":[{"code":"NET_30_EARNED","detail":"3/3 invoices paid on time"},{"code":"LIMIT_BY_ONCHAIN_BALANCE","detail":"buyer balance $51.06"},{"code":"LIMIT_TIGHTENED","detail":"$75.31 → $51.06"}]},"inputs":{"mandate":{"id":"0x7d1de89b15785d0d671cc265fb13817a533df302f06b7a1a2ce6f1620d57cd0e","budget":40000,"spent":18624,"revoked":false},"balance":5106,"booksSource":"t0","invoices":3}},"scene":"6c"},{"seq":39,"at":"2026-11-10T16:00:17.084Z","buyerId":"globex","type":"mandate","summary":"buyer's human replaced the mandate: budget $85.00","data":{"mandateId":"0xe4e279beb1a21e9d72ff3a4f6b5f4a6206d88e644e309e6fe56e303e1bfcb3f7","tx":"0xa7c539acf0c1c1c9ba6c82734e819c97e63cef2166160a83a1e57dd34f9672b5","budget":8500},"scene":"7"},{"seq":40,"at":"2026-11-10T16:00:21.100Z","buyerId":"globex","type":"decision","summary":"NET_7 · limit $85.00 · available $5.00","data":{"decision":{"buyerId":"globex","terms":"NET_7","limit":8500,"available":500,"collectNow":8000,"collectMax":8500,"escalate":0,"reasons":[{"code":"NET_7_DEFAULT","detail":"0/0 on time; net-30 needs 3 at ≥90%"},{"code":"LIMIT_BY_MANDATE_HEADROOM","detail":"mandate headroom $85.00"},{"code":"LIMIT_TIGHTENED","detail":"$90.00 → $85.00 (the buyer's human lowered the mandate to $85.00)"},{"code":"COLLECT_ALL","detail":"collect $80.00 now"}]},"inputs":{"mandate":{"id":"0xe4e279beb1a21e9d72ff3a4f6b5f4a6206d88e644e309e6fe56e303e1bfcb3f7","budget":8500,"spent":0,"revoked":false},"balance":10000,"booksSource":"standin","invoices":0}},"scene":"7"},{"seq":41,"at":"2026-11-10T16:00:31.545Z","buyerId":"globex","type":"collect","summary":"collected $80.00 for 1 order(s)","data":{"tx":"0xd073c3b4ec005cc9ba3c96dbacd6abeca1bb1014a250de26d6ce49b1bd3e3d21","paymentId":"0x5afe8cf8ad438d6cfc12ae0b37de493da1020d34ed30a87e858363bf5db14fcf","orders":["ord-mwavjbut-2"],"amount":8000,"creditApplied":0},"scene":"7"},{"seq":42,"at":"2026-11-10T16:00:33.875Z","buyerId":"globex","type":"decision","summary":"NET_7 · limit $5.00 · available $5.00","data":{"decision":{"buyerId":"globex","terms":"NET_7","limit":500,"available":500,"collectNow":0,"collectMax":500,"escalate":0,"reasons":[{"code":"NET_7_DEFAULT","detail":"0/0 on time; net-30 needs 3 at ≥90%"},{"code":"LIMIT_BY_MANDATE_HEADROOM","detail":"mandate headroom $5.00"},{"code":"LIMIT_TIGHTENED","detail":"$85.00 → $5.00"}]},"inputs":{"mandate":{"id":"0xe4e279beb1a21e9d72ff3a4f6b5f4a6206d88e644e309e6fe56e303e1bfcb3f7","budget":8500,"spent":8000,"revoked":false},"balance":2000,"booksSource":"standin","invoices":0}},"scene":"7"},{"seq":43,"at":"2026-11-10T16:00:36.021Z","buyerId":"acme","type":"settle","summary":"deposited $186.24 into Airwallex, kept $9.32 refund reserve, converted 176.92 USD → 225.47 SGD","data":{"depositId":"479cde27-eff6-498e-8a65-afa5076b8490","quoteId":"6441bac7-970c-3629-8f62-37d462d06d86","conversionId":"8bc6db2c-92a1-4e7a-8759-9a402e9ae2e8","rate":1.274446,"metalTx":"0xc72689e890c1cea4f028945cc7797f9f07ed5530bd4fb6a159ca110e53acdb0b"},"scene":"8"},{"seq":44,"at":"2026-11-10T16:00:37.555Z","buyerId":"acme","type":"books","summary":"booked in T:0 as JE-10: debit Airwallex cash, credit A/R $186.24","data":{"source":"t0","journalEntryId":"je_prod_8Q1xcuSQvyGPkZkJ","metalTx":"0xc72689e890c1cea4f028945cc7797f9f07ed5530bd4fb6a159ca110e53acdb0b"},"scene":"8"},{"seq":45,"at":"2026-11-10T16:00:39.163Z","buyerId":"acme","type":"settle","summary":"deposited $24.25 into Airwallex, kept $1.22 refund reserve, converted 23.03 USD → 29.35 SGD","data":{"depositId":"631c6fda-015c-4a55-b282-c68d713c6c27","quoteId":"8af41021-db68-31b1-9d7e-f990ac07cd19","conversionId":"2601a5b8-07a1-4a04-b0e2-ce1302f00624","rate":1.274446,"metalTx":"0xd5ebfb6a9cc6638c8d9badb20c0b0aa261b00b540303e3fae47f583f973d9b1a"},"scene":"8"},{"seq":46,"at":"2026-11-10T16:00:40.582Z","buyerId":"acme","type":"books","summary":"booked in T:0 as JE-11: debit Airwallex cash, credit A/R $24.25","data":{"source":"t0","journalEntryId":"je_prod_czIvKtSyTplbdJCJ","metalTx":"0xd5ebfb6a9cc6638c8d9badb20c0b0aa261b00b540303e3fae47f583f973d9b1a"},"scene":"8"},{"seq":47,"at":"2026-11-10T16:00:42.399Z","buyerId":"globex","type":"settle","summary":"deposited $80.00 into Airwallex, kept $4.00 refund reserve, converted 76 USD → 96.86 SGD","data":{"depositId":"a32ea8ce-2906-4c2e-b2d6-48b5cb9e5c88","quoteId":"ef3d2ca4-7351-3e21-b294-c7dde3a17ef2","conversionId":"de215efb-ee9e-486e-b557-b030c382d46f","rate":1.274446,"metalTx":"0xd073c3b4ec005cc9ba3c96dbacd6abeca1bb1014a250de26d6ce49b1bd3e3d21"},"scene":"8"},{"seq":48,"at":"2026-11-10T16:00:42.399Z","buyerId":"globex","type":"books","summary":"not booked in T:0: Globex sourcing agent has stand-in books (no matching T:0 customer, and this key cannot create one)","data":{"source":"standin","metalTx":"0xd073c3b4ec005cc9ba3c96dbacd6abeca1bb1014a250de26d6ce49b1bd3e3d21"},"scene":"8"},{"seq":49,"at":"2026-11-10T16:00:47.278Z","buyerId":"desk","type":"proof","summary":"21 checks across the desk, Metal, Airwallex and T:0 · 0 break(s)","data":{"checks":[{"name":"acme: charged − credits = collected + open − credit owed","ok":true,"detail":"$210.49 = $210.49 + $0.00 − $0.00"},{"name":"acme: no order collected twice","ok":true,"detail":"3 order(s), each collected once"},{"name":"acme: one transaction per payment-id","ok":true,"detail":"2 payment-id(s)"},{"name":"acme: every collected order is traceable","ok":true,"detail":"all traceable"},{"name":"acme: credits priced at what was charged","ok":true,"detail":"1 re-priced at the charged unit price"},{"name":"acme: statement STM-4502B18C refusals recorded on chain","ok":true,"detail":"2 refusal(s), 0 without a chain record","ids":["0x8143f9bc0ed4297e82e1900d39368ecd709f551a734f9187f4278d6c7a8948e2","0xfc3a1940669df09d7a6f9d2373c8f309826de4cba3b9c5a26537bd0db27699a2"]},{"name":"globex: charged − credits = collected + open − credit owed","ok":true,"detail":"$80.00 = $80.00 + $0.00 − $0.00"},{"name":"globex: no order collected twice","ok":true,"detail":"1 order(s), each collected once"},{"name":"globex: one transaction per payment-id","ok":true,"detail":"1 payment-id(s)"},{"name":"globex: every collected order is traceable","ok":true,"detail":"all traceable"},{"name":"globex: card captures = owed after credits, within the authorisation","ok":true,"detail":"$48.00 captured of $60.00 authorised on 1 order(s)"},{"name":"globex: credits priced at what was charged","ok":true,"detail":"1 re-priced at the charged unit price"},{"name":"every collection succeeded on chain","ok":true,"detail":"3/3 receipts status 0x1","ids":["0xc72689e890c1cea4f028945cc7797f9f07ed5530bd4fb6a159ca110e53acdb0b","0xd5ebfb6a9cc6638c8d9badb20c0b0aa261b00b540303e3fae47f583f973d9b1a","0xd073c3b4ec005cc9ba3c96dbacd6abeca1bb1014a250de26d6ce49b1bd3e3d21"]},{"name":"every collection moved exactly its amount from the buyer to Northwind","ok":true,"detail":"3/3 transfer logs match amount, buyer and payee","ids":["0xc72689e890c1cea4f028945cc7797f9f07ed5530bd4fb6a159ca110e53acdb0b","0xd5ebfb6a9cc6638c8d9badb20c0b0aa261b00b540303e3fae47f583f973d9b1a","0xd073c3b4ec005cc9ba3c96dbacd6abeca1bb1014a250de26d6ce49b1bd3e3d21"]},{"name":"every refusal is recorded on chain by Northwind","ok":true,"detail":"2/2 refusal txs succeeded, sent by the supplier","ids":["0x8143f9bc0ed4297e82e1900d39368ecd709f551a734f9187f4278d6c7a8948e2","0xfc3a1940669df09d7a6f9d2373c8f309826de4cba3b9c5a26537bd0db27699a2"]},{"name":"settlement of 0xc72689e8…","ok":true,"detail":"matches a collection; conversion SETTLED","ids":["479cde27-eff6-498e-8a65-afa5076b8490","8bc6db2c-92a1-4e7a-8759-9a402e9ae2e8"]},{"name":"settlement of 0xd5ebfb6a…","ok":true,"detail":"matches a collection; conversion SETTLED","ids":["631c6fda-015c-4a55-b282-c68d713c6c27","2601a5b8-07a1-4a04-b0e2-ce1302f00624"]},{"name":"settlement of 0xd073c3b4…","ok":true,"detail":"matches a collection; conversion SETTLED","ids":["a32ea8ce-2906-4c2e-b2d6-48b5cb9e5c88","de215efb-ee9e-486e-b557-b030c382d46f"]},{"name":"card capture int_sgpvfdzq7ho1a3akbg7","ok":true,"detail":"Airwallex captured $48.00 (SUCCEEDED); desk counted $48.00","ids":["int_sgpvfdzq7ho1a3akbg7"]},{"name":"T:0 journal je_prod_8Q1xcuSQvyGPkZkJ","ok":true,"detail":"tied to a collection; balanced 18624/18624; equals the $186.24 collected","ids":["je_prod_8Q1xcuSQvyGPkZkJ"]},{"name":"T:0 journal je_prod_czIvKtSyTplbdJCJ","ok":true,"detail":"tied to a collection; balanced 2425/2425; equals the $24.25 collected","ids":["je_prod_czIvKtSyTplbdJCJ"]}]},"scene":"9"}]}</script>
+<script>window.__RUN__ = {"run":"rmwavgb3a","ranAt":"2026-11-10T15:55:57.453Z","buyers":[{"id":"acme","name":"Acme procurement agent","account":"0x4d0a5161AbA00FB71397675a1919163d6e7cEd33"},{"id":"globex","name":"Globex sourcing agent","account":"0xF6282AAD66B0dD563c714aad5E1D24019C1598C5"},{"id":"initech","name":"Initech buying agent","account":"0x0000000000000000000000000000000000000001"}],"scenes":[{"key":"1","title":"Acme: its earlier Visa payment is verified against Airwallex; its human binds a $400 credit line","firstSeq":1},{"key":"1b","title":"Northwind's CFO types this quarter's goals; Claude compiles them, code checks them, the desk dry-runs them","firstSeq":5},{"key":"2","title":"Acme's agent (Claude) shops and chooses how to pay","firstSeq":9},{"key":"3","title":"Globex is new to Northwind: no Metal terms yet, but a Visa authorisation can secure a short tab","firstSeq":15},{"key":"3b","title":"Before the due date, Northwind's delivery QA flags one 1,000-row batch as stale: a credit note","firstSeq":20},{"key":"3c","title":"Due (compressed for the video): capture only the undisputed amount; the rest of the hold lapses","firstSeq":21},{"key":"3d","title":"A settled Visa payment on record: Globex now qualifies for Metal terms, and its agent re-plans","firstSeq":22},{"key":"4","title":"Initech's books show an overdue invoice: prepay only, and orders for terms it is not offered are refused","firstSeq":25},{"key":"5","title":"Acme disputes stale data; the model reads, code decides, before anything is collected","firstSeq":27},{"key":"5b","title":"Mid-book, with tabs open, the CFO caps any single buyer's credit; the dry run shows what it costs, then the desk collects the excess on chain","firstSeq":29},{"key":"6","title":"Acme's statement becomes its own Metal mandate; the chain enforces the terms","firstSeq":34},{"key":"6b","title":"Try to collect early","firstSeq":35},{"key":"6c","title":"Collect on time, then try to double-charge with a fresh payment id","firstSeq":36},{"key":"7","title":"Globex's human cuts the credit line to $85.00; the desk collects the tab before it's gone","firstSeq":39},{"key":"8","title":"Settle every collection into Airwallex, convert to SGD, book in T:0 where the customer lives there","firstSeq":43},{"key":"9","title":"Every dollar proven","firstSeq":49}],"events":[{"seq":1,"at":"2026-11-10T15:55:57.453Z","buyerId":"acme","type":"vic","summary":"Visa-verified payment $186.00 checked against Airwallex (statement STM-20261109-E5DP) → counts toward terms","data":{"paymentIntentId":"int_sgpvtdh4nhnzlj965wb","airiMandateId":"mdt_sgpdvzqsghnzlj9vq2w","statementId":"STM-20261109-E5DP","statementHash":"0b5a592867e7e8abd004d634394e0fa680ba5e48068aca3fe3598e0d88569125","checks":{"succeeded":true,"captured":true,"statement":true,"hash":true}},"scene":"1"},{"seq":2,"at":"2026-11-10T15:55:58.451Z","buyerId":"acme","type":"books","summary":"books (T:0): 3 of 3 invoices paid on time · T:0 customer \"Zephyr Metrics AB\"","data":{"source":"t0","customer":"t0_customer_prod_e9882b26f7979f04d28e"},"scene":"1"},{"seq":3,"at":"2026-11-10T15:56:02.945Z","buyerId":"acme","type":"mandate","summary":"buyer's human bound a debit mandate: budget $400.00","data":{"mandateId":"0x7d1de89b15785d0d671cc265fb13817a533df302f06b7a1a2ce6f1620d57cd0e","tx":"0x355e2911f04cd1faeac72bb6053c83c0cabfc1a848f35bebc0e5a268c55b26e1","budget":40000},"scene":"1"},{"seq":4,"at":"2026-11-10T15:56:04.840Z","buyerId":"acme","type":"decision","summary":"NET_30 · limit $261.55 · available $261.55","data":{"decision":{"buyerId":"acme","terms":"NET_30","limit":26155,"available":26155,"collectNow":0,"collectMax":26155,"escalate":0,"reasons":[{"code":"NET_30_EARNED","detail":"3/3 invoices paid on time"},{"code":"LIMIT_BY_ONCHAIN_BALANCE","detail":"buyer balance $261.55"}]},"inputs":{"mandate":{"id":"0x7d1de89b15785d0d671cc265fb13817a533df302f06b7a1a2ce6f1620d57cd0e","budget":40000,"spent":0,"revoked":false},"balance":26155,"booksSource":"t0","invoices":3}},"scene":"1"},{"seq":5,"at":"2026-11-10T15:56:18.826Z","buyerId":"desk","type":"refused","summary":"policy not applied: it does not verify under the CFO's key (content or signature changed after signing; signed hash 0x03b3c6bb48…, policy numbers now hash to 0x6d44e2e356…)","data":{"signedHash":"0x03b3c6bb485e48d9a47a8cc460ad7e873ab2a99e725f0836f7dae207e401288e","actualHash":"0x6d44e2e35617b3cfa777ed34df06f5e46e4ffa3bb92080967163fdde4bdb766a"},"scene":"1b"},{"seq":6,"at":"2026-11-10T15:56:18.827Z","buyerId":"desk","type":"policy","summary":"CFO policy signed and applied: net-30 limit $900.00 → $350.00; early-pay discount 2% → 3% · not expressible: give our best customers net-90","data":{"hash":"0x03b3c6bb485e48d9a47a8cc460ad7e873ab2a99e725f0836f7dae207e401288e","signature":"6PhBK8sXw-hWMcGEii_FuZXvSinel_pws9iR1vxuNe2tZmbyfRbqtyDm5n0egiYa4EvD6RWi2cis8lktLNcu-Q","kid":"gkMMd5cJjEIT2cWLmXMUXiMTWKVWCxPGSVGSxL8XnH8","goals":"Cash is tight this quarter, so we want to be paid faster: offer 3% off to any buyer who pays within 10 days. Keep net-30 for buyers with a clean record, but no single buyer above $350 on credit. And give our best customers net-90.","accepted":[{"field":"net30Limit","from":90000,"to":35000,"cfoWords":"Keep net-30 for buyers with a clean record, but no single buyer above $350 on credit."},{"field":"earlyPayDiscount","from":0.02,"to":0.03,"cfoWords":"offer 3% off to any buyer who pays within 10 days"}],"rejected":[],"notCompiled":[{"goal":"give our best customers net-90","why":"The policy has no net-90 tier or term-length field, and it cannot be approximated with another field."}],"diff":[{"buyerId":"acme","name":"Acme procurement agent","before":{"terms":"NET_30","limit":26155},"after":{"terms":"NET_30","limit":26155},"outstanding":0,"wouldCollect":0},{"buyerId":"globex","name":"Globex sourcing agent","before":{"terms":"PREPAY","limit":0},"after":{"terms":"PREPAY","limit":0},"outstanding":0,"wouldCollect":0},{"buyerId":"initech","name":"Initech buying agent","before":{"terms":"PREPAY","limit":0},"after":{"terms":"PREPAY","limit":0},"outstanding":0,"wouldCollect":0}],"model":"claude-opus-5-5"},"scene":"1b"},{"seq":7,"at":"2026-11-10T15:56:23.026Z","buyerId":"globex","type":"decision","summary":"PREPAY · limit $0.00 · available $0.00","data":{"decision":{"buyerId":"globex","terms":"PREPAY","limit":0,"available":0,"collectNow":0,"collectMax":0,"escalate":0,"reasons":[{"code":"NO_MANDATE","detail":"buyer has not bound a debit mandate"},{"code":"NO_VIC_HISTORY","detail":"no settled VIC payment yet; prepay first"}]},"inputs":{"balance":10000,"booksSource":"standin","invoices":0}},"scene":"1b"},{"seq":8,"at":"2026-11-10T15:56:23.209Z","buyerId":"initech","type":"decision","summary":"PREPAY · limit $0.00 · available $0.00","data":{"decision":{"buyerId":"initech","terms":"PREPAY","limit":0,"available":0,"collectNow":0,"collectMax":0,"escalate":0,"reasons":[{"code":"NO_MANDATE","detail":"buyer has not bound a debit mandate"},{"code":"OVERDUE_INVOICE","detail":"INV-3002 is 23 days overdue ($400.00)"},{"code":"NO_VIC_HISTORY","detail":"no settled VIC payment yet; prepay first"}]},"inputs":{"balance":0,"booksSource":"standin","invoices":2}},"scene":"1b"},{"seq":9,"at":"2026-11-10T15:56:42.564Z","buyerId":"acme","type":"order","summary":"ord-mwavhqro-1 Market data queries · 2000 query: $77.60 → 3% off, due in 10 days, on the tab","data":{"order":{"id":"ord-mwavhqro-1","amount":7760,"description":"Market data queries · 2000 query","placedAt":"2026-11-10T15:56:42.564Z","route":"ON_TAB","productId":"mkt-queries","units":2000,"unitPrice":4,"priceRoute":"/v2/query","option":"pay_in_10_discount","discount":0.03,"dueAt":"2026-11-20T15:56:42.564Z","staleUnits":200,"credited":776,"collectedBy":"0xc72689e890c1cea4f028945cc7797f9f07ed5530bd4fb6a159ca110e53acdb0b"},"note":null},"scene":"2"},{"seq":10,"at":"2026-11-10T15:56:43.652Z","buyerId":"acme","type":"decision","summary":"NET_30 · limit $261.55 · available $183.95","data":{"decision":{"buyerId":"acme","terms":"NET_30","limit":26155,"available":18395,"collectNow":0,"collectMax":26155,"escalate":0,"reasons":[{"code":"NET_30_EARNED","detail":"3/3 invoices paid on time"},{"code":"LIMIT_BY_ONCHAIN_BALANCE","detail":"buyer balance $261.55"}]},"inputs":{"mandate":{"id":"0x7d1de89b15785d0d671cc265fb13817a533df302f06b7a1a2ce6f1620d57cd0e","budget":40000,"spent":0,"revoked":false},"balance":26155,"booksSource":"t0","invoices":3}},"scene":"2"},{"seq":11,"at":"2026-11-10T15:56:43.654Z","buyerId":"acme","type":"order","summary":"ord-mwavhrly-2 FX tick backfill · 10 1,000 rows: $116.40 → 3% off, due in 10 days, on the tab","data":{"order":{"id":"ord-mwavhrly-2","amount":11640,"description":"FX tick backfill · 10 1,000 rows","placedAt":"2026-11-10T15:56:43.654Z","route":"ON_TAB","productId":"fx-backfill","units":10,"unitPrice":1200,"priceRoute":"/v2/backfill","option":"pay_in_10_discount","discount":0.03,"dueAt":"2026-11-20T15:56:43.654Z","collectedBy":"0xc72689e890c1cea4f028945cc7797f9f07ed5530bd4fb6a159ca110e53acdb0b"},"note":null},"scene":"2"},{"seq":12,"at":"2026-11-10T15:56:44.119Z","buyerId":"acme","type":"decision","summary":"NET_30 · limit $261.55 · available $67.55","data":{"decision":{"buyerId":"acme","terms":"NET_30","limit":26155,"available":6755,"collectNow":0,"collectMax":26155,"escalate":0,"reasons":[{"code":"NET_30_EARNED","detail":"3/3 invoices paid on time"},{"code":"LIMIT_BY_ONCHAIN_BALANCE","detail":"buyer balance $261.55"}]},"inputs":{"mandate":{"id":"0x7d1de89b15785d0d671cc265fb13817a533df302f06b7a1a2ce6f1620d57cd0e","budget":40000,"spent":0,"revoked":false},"balance":26155,"booksSource":"t0","invoices":3}},"scene":"2"},{"seq":13,"at":"2026-11-10T15:56:44.120Z","buyerId":"acme","type":"order","summary":"ord-mwavhryw-3 Priority SLA · 1 day: $24.25 → 3% off, due in 10 days, on the tab","data":{"order":{"id":"ord-mwavhryw-3","amount":2425,"description":"Priority SLA · 1 day","placedAt":"2026-11-10T15:56:44.120Z","route":"ON_TAB","productId":"sla-day","units":1,"unitPrice":2500,"priceRoute":"/v2/sla","option":"pay_in_10_discount","discount":0.03,"dueAt":"2026-11-20T15:56:44.120Z","collectedBy":"0xd5ebfb6a9cc6638c8d9badb20c0b0aa261b00b540303e3fae47f583f973d9b1a"},"note":null},"scene":"2"},{"seq":14,"at":"2026-11-10T15:56:46.919Z","buyerId":"acme","type":"agent","summary":"Acme procurement agent: I bought everything the Q4 pricing model refresh needs from Northwind: 2,000 market-data queries, 10,000 rows of FX tick backfill and one day of priority SLA, for $218.25 in total, which is within our $250 per-order limit and $500 monthly budget. All three orders are on our tab with the 3% early-payment discount, so about $218 will be collected from our account on November 20, 10 days from now. Paying 20 days earlier than the free 30-day option saves $6.75, which works out to about 56% a year, far more than our 12% cost of capital or the 4% our idle cash earns, and cash is comfortable this month.","data":{"model":"claude-opus-5-5","orders":["ord-mwavhqro-1","ord-mwavhrly-2","ord-mwavhryw-3"],"refusals":[],"toolCalls":8},"scene":"2"},{"seq":15,"at":"2026-11-10T15:56:51.400Z","buyerId":"globex","type":"mandate","summary":"buyer's human bound a debit mandate: budget $90.00","data":{"mandateId":"0x0c70037ef3d93a26e8a7250f1c963d4ac76abf6932a35d9a791f09c3b5e1c504","tx":"0x20d2f3191cea8dc1eb3b27e460f174ea3fdca67011ff25137af2509683b48e00","budget":9000},"scene":"3"},{"seq":16,"at":"2026-11-10T15:56:56.236Z","buyerId":"globex","type":"decision","summary":"PREPAY · limit $0.00 · available $0.00","data":{"decision":{"buyerId":"globex","terms":"PREPAY","limit":0,"available":0,"collectNow":0,"collectMax":9000,"escalate":0,"reasons":[{"code":"NO_VIC_HISTORY","detail":"no settled VIC payment yet; prepay first"}]},"inputs":{"mandate":{"id":"0x0c70037ef3d93a26e8a7250f1c963d4ac76abf6932a35d9a791f09c3b5e1c504","budget":9000,"spent":0,"revoked":false},"balance":10000,"booksSource":"standin","invoices":0}},"scene":"3"},{"seq":17,"at":"2026-11-10T15:57:08.652Z","buyerId":"globex","type":"order","summary":"ord-mwaviawc-1 FX tick backfill · 5 1,000 rows: $60.00 → 7-day tab secured by a Visa authorisation","data":{"order":{"id":"ord-mwaviawc-1","amount":6000,"description":"FX tick backfill · 5 1,000 rows","placedAt":"2026-11-10T15:57:08.652Z","route":"CARD_AUTH","productId":"fx-backfill","units":5,"unitPrice":1200,"priceRoute":"/v2/backfill","option":"card_net_7","discount":0,"dueAt":"2026-11-17T15:57:08.652Z","card":{"paymentIntentId":"int_sgpvfdzq7ho1a3akbg7","airiMandateId":"mdt_sgpdll5pnho1a3b2vki","statementId":"STM-rmwavgb3a-G1","authorised":6000,"captured":4800},"credited":1200,"collectedBy":"card:int_sgpvfdzq7ho1a3akbg7"},"note":null},"scene":"3"},{"seq":18,"at":"2026-11-10T15:57:11.977Z","buyerId":"globex","type":"agent","summary":"Globex sourcing agent: I bought 5,000 rows of FX tick backfill from Northwind for $60.00 (5 units at $12 per 1,000 rows), order ord-mwaviawc-1. That is well inside our $200 per-order limit and $400 monthly budget, and I bought nothing else because nothing else was asked for. I'm paying on Northwind's 7-day card tab: our Visa card is authorised now and charged on 17 November 2026, and only for amounts we haven't disputed. Paying now by card was the only other option, at the same $60, and Northwind offered no net-30 or early-payment discount because we have no settled payment with them yet. Paying later at no extra cost is the best choice when our borrowing costs 45% a year.","data":{"model":"claude-opus-5-5","orders":["ord-mwaviawc-1"],"refusals":[],"toolCalls":4},"scene":"3"},{"seq":19,"at":"2026-11-10T15:57:36.772Z","buyerId":"globex","type":"vic","summary":"Visa authorisation $60.00 holds the tab for 1 order(s) (statement STM-rmwavgb3a-G1, checked against Airwallex: authorised, not captured)","data":{"paymentIntentId":"int_sgpvfdzq7ho1a3akbg7","airiMandateId":"mdt_sgpdll5pnho1a3b2vki","statementId":"STM-rmwavgb3a-G1","statementHash":"0x7ff4604cabf395e8540abbc851f7feab1a560fb7c9a611f175056742165c5bce","checks":{"authorised":true,"amount":true,"statement":true,"hash":true},"orderIds":["ord-mwaviawc-1"]},"scene":"3"},{"seq":20,"at":"2026-11-10T15:57:37.575Z","buyerId":"globex","type":"credit","summary":"credit note $12.00 on ord-mwaviawc-1: delivery QA: one 1,000-row batch had stale ticks (reduces what is owed on the tab)","data":{"orderId":"ord-mwaviawc-1","amount":1200,"reason":"delivery QA: one 1,000-row batch had stale ticks","collected":false,"staleUnits":1},"scene":"3b"},{"seq":21,"at":"2026-11-10T15:57:38.885Z","buyerId":"globex","type":"vic","summary":"captured $48.00 of the $60.00 authorised: only the undisputed amount; the rest of the hold lapses (checked against Airwallex) → counts toward terms","data":{"paymentIntentId":"int_sgpvfdzq7ho1a3akbg7","captured":4800,"authorised":6000,"orderIds":["ord-mwaviawc-1"],"checks":{"succeeded":true,"capturedOwed":true}},"scene":"3c"},{"seq":22,"at":"2026-11-10T15:57:44.959Z","buyerId":"globex","type":"decision","summary":"NET_7 · limit $90.00 · available $90.00","data":{"decision":{"buyerId":"globex","terms":"NET_7","limit":9000,"available":9000,"collectNow":0,"collectMax":9000,"escalate":0,"reasons":[{"code":"NET_7_DEFAULT","detail":"0/0 on time; net-30 needs 3 at ≥90%"},{"code":"LIMIT_BY_MANDATE_HEADROOM","detail":"mandate headroom $90.00"}]},"inputs":{"mandate":{"id":"0x0c70037ef3d93a26e8a7250f1c963d4ac76abf6932a35d9a791f09c3b5e1c504","budget":9000,"spent":0,"revoked":false},"balance":10000,"booksSource":"standin","invoices":0}},"scene":"3d"},{"seq":23,"at":"2026-11-10T15:57:56.549Z","buyerId":"globex","type":"order","summary":"ord-mwavjbut-2 Market data queries · 2000 query: $80.00 → net-7 on the tab","data":{"order":{"id":"ord-mwavjbut-2","amount":8000,"description":"Market data queries · 2000 query","placedAt":"2026-11-10T15:57:56.549Z","route":"ON_TAB","productId":"mkt-queries","units":2000,"unitPrice":4,"priceRoute":"/v2/query","option":"net_7","discount":0,"dueAt":"2026-11-17T15:57:56.549Z","collectedBy":"0xd073c3b4ec005cc9ba3c96dbacd6abeca1bb1014a250de26d6ce49b1bd3e3d21"},"note":null},"scene":"3d"},{"seq":24,"at":"2026-11-10T15:57:59.694Z","buyerId":"globex","type":"agent","summary":"Globex sourcing agent: I bought 2,000 market-data queries from Northwind for $80.00 (order ord-mwavjbut-2). That fits within our $200 per-order limit and $400 monthly budget, and it is our only spend this month. I put it on our Northwind tab on net-7 terms, so the $80.00 is due on 17 November 2026. Paying now by card cost the same with no discount, so with borrowing at 45% a year it made sense to pay later; Northwind didn't offer net-30 or an early-payment discount, because they only give net-30 after three on-time payments.","data":{"model":"claude-opus-5-5","orders":["ord-mwavjbut-2"],"refusals":[],"toolCalls":4},"scene":"3d"},{"seq":25,"at":"2026-11-10T15:58:01.353Z","buyerId":"initech","type":"refused","summary":"order refused: option \"net_30\" is not on offer for this order (prepay by card unavailable: over the $200 per-transaction card cap (orders are never split); no credit terms: buyer has not bound a debit mandate; INV-3002 is 23 days overdue ($400.00); no settled VIC payment yet; prepay first)","data":{"req":{"productId":"sla-day","units":10,"option":"net_30"},"offered":[]},"scene":"4"},{"seq":26,"at":"2026-11-10T15:58:02.047Z","buyerId":"initech","type":"refused","summary":"order refused: option \"prepay_card\" is not on offer for this order (prepay by card unavailable: over the $200 per-transaction card cap (orders are never split); no credit terms: buyer has not bound a debit mandate; INV-3002 is 23 days overdue ($400.00); no settled VIC payment yet; prepay first)","data":{"req":{"productId":"sla-day","units":9,"option":"prepay_card"},"offered":[]},"scene":"4"},{"seq":27,"at":"2026-11-10T15:58:07.376Z","buyerId":"acme","type":"credit","summary":"credit note $7.76 on ord-mwavhqro-1: 200 stale unit(s) confirmed by delivery QA × 3.88¢ charged per unit (reduces what is owed on the tab)","data":{"orderId":"ord-mwavhqro-1","amount":776,"reason":"200 stale unit(s) confirmed by delivery QA × 3.88¢ charged per unit","collected":false,"staleUnits":200},"scene":"5"},{"seq":28,"at":"2026-11-10T15:58:07.377Z","buyerId":"acme","type":"dispute","summary":"dispute resolved: $7.76 credited, 3 claim(s) declined with the order record as proof, 0 to a person","data":{"summary":"Priya (Finance, Acme) makes two claims. First, she disputes the prices charged. She does not name specific orders, so all three listed orders are included. Second, she says all 2000 units in ord-mwavhqro-1 were stale, showing yesterday's values, and she asks for a refund of that order.","model":"claude-opus-5-5","findings":[{"claim":"price_not_agreed","orderId":"ord-mwavhqro-1","verdict":"upheld_for_supplier","reason":"ordered on /v2/query at 4¢/unit list × 2000, charged $77.60","proof":"order ord-mwavhqro-1 placed 2026-11-10T15:56:42.564Z"},{"claim":"price_not_agreed","orderId":"ord-mwavhrly-2","verdict":"upheld_for_supplier","reason":"ordered on /v2/backfill at 1200¢/unit list × 10, charged $116.40","proof":"order ord-mwavhrly-2 placed 2026-11-10T15:56:43.654Z"},{"claim":"price_not_agreed","orderId":"ord-mwavhryw-3","verdict":"upheld_for_supplier","reason":"ordered on /v2/sla at 2500¢/unit list × 1, charged $24.25","proof":"order ord-mwavhryw-3 placed 2026-11-10T15:56:44.120Z"},{"claim":"data_quality","orderId":"ord-mwavhqro-1","verdict":"credit","amount":776,"units":200,"reason":"200 stale unit(s) confirmed by delivery QA × 3.88¢ charged per unit"}]},"scene":"5"},{"seq":29,"at":"2026-11-10T15:58:20.995Z","buyerId":"desk","type":"policy","summary":"CFO policy signed and applied: net-7 limit $300.00 → $100.00; net-30 limit $350.00 → $100.00 · not expressible: Apply the $100 cap only until month end","data":{"hash":"0x5172aa31b632e09bd43c55686d21b71f03c1c30ae028faa67b01ec8831835aa4","signature":"ysN0Op1CvMBq2aZgWwMicSeLviF_HxAV6ER-PJUHfXxXsDuav_-eXryPMhNhKOz_L0YcnZvkv6Zk1YHSNANe6g","kid":"gkMMd5cJjEIT2cWLmXMUXiMTWKVWCxPGSVGSxL8XnH8","goals":"A large customer just failed to pay another supplier, so cut our concentration risk: until month end, no single buyer may owe us more than $100 on credit, whatever their terms. Keep the 3% early-pay discount.","accepted":[{"field":"net7Limit","from":30000,"to":10000,"cfoWords":"no single buyer may owe us more than $100 on credit, whatever their terms"},{"field":"net30Limit","from":35000,"to":10000,"cfoWords":"no single buyer may owe us more than $100 on credit, whatever their terms"}],"rejected":[],"notCompiled":[{"goal":"Apply the $100 cap only until month end","why":"The policy fields have no expiry date, so the limits stay at $100 until someone changes them back."}],"diff":[{"buyerId":"acme","name":"Acme procurement agent","before":{"terms":"NET_30","limit":26155},"after":{"terms":"NET_30","limit":10000},"outstanding":21049,"wouldCollect":18624},{"buyerId":"globex","name":"Globex sourcing agent","before":{"terms":"NET_7","limit":9000},"after":{"terms":"NET_7","limit":9000},"outstanding":8000,"wouldCollect":0},{"buyerId":"initech","name":"Initech buying agent","before":{"terms":"PREPAY","limit":0},"after":{"terms":"PREPAY","limit":0},"outstanding":0,"wouldCollect":0}],"model":"claude-opus-5-5"},"scene":"5b"},{"seq":30,"at":"2026-11-10T15:58:24.368Z","buyerId":"acme","type":"decision","summary":"NET_30 · limit $100.00 · available $0.00","data":{"decision":{"buyerId":"acme","terms":"NET_30","limit":10000,"available":0,"collectNow":11049,"collectMax":26155,"escalate":0,"reasons":[{"code":"NET_30_EARNED","detail":"3/3 invoices paid on time"},{"code":"LIMIT_BY_TERMS_CAP","detail":"NET_30 cap $100.00"},{"code":"LIMIT_TIGHTENED","detail":"$261.55 → $100.00"},{"code":"COLLECT_EXCESS","detail":"$110.49 over the limit"}]},"inputs":{"mandate":{"id":"0x7d1de89b15785d0d671cc265fb13817a533df302f06b7a1a2ce6f1620d57cd0e","budget":40000,"spent":0,"revoked":false},"balance":26155,"booksSource":"t0","invoices":3}},"scene":"5b"},{"seq":31,"at":"2026-11-10T15:58:34.306Z","buyerId":"acme","type":"collect","summary":"collected $186.24 for 2 order(s)","data":{"tx":"0xc72689e890c1cea4f028945cc7797f9f07ed5530bd4fb6a159ca110e53acdb0b","paymentId":"0x23f8aa25fa4fa74a3a79aeb288931f8c2bb9815cf2c9e6aa132f02e7ebc3c68c","orders":["ord-mwavhqro-1","ord-mwavhrly-2"],"amount":18624,"creditApplied":0},"scene":"5b"},{"seq":32,"at":"2026-11-10T15:58:37.284Z","buyerId":"acme","type":"decision","summary":"NET_30 · limit $75.31 · available $51.06","data":{"decision":{"buyerId":"acme","terms":"NET_30","limit":7531,"available":5106,"collectNow":0,"collectMax":7531,"escalate":0,"reasons":[{"code":"NET_30_EARNED","detail":"3/3 invoices paid on time"},{"code":"LIMIT_BY_ONCHAIN_BALANCE","detail":"buyer balance $75.31"},{"code":"LIMIT_TIGHTENED","detail":"$100.00 → $75.31"}]},"inputs":{"mandate":{"id":"0x7d1de89b15785d0d671cc265fb13817a533df302f06b7a1a2ce6f1620d57cd0e","budget":40000,"spent":18624,"revoked":false},"balance":7531,"booksSource":"t0","invoices":3}},"scene":"5b"},{"seq":33,"at":"2026-11-10T15:58:39.724Z","buyerId":"globex","type":"decision","summary":"NET_7 · limit $90.00 · available $10.00","data":{"decision":{"buyerId":"globex","terms":"NET_7","limit":9000,"available":1000,"collectNow":0,"collectMax":9000,"escalate":0,"reasons":[{"code":"NET_7_DEFAULT","detail":"0/0 on time; net-30 needs 3 at ≥90%"},{"code":"LIMIT_BY_MANDATE_HEADROOM","detail":"mandate headroom $90.00"}]},"inputs":{"mandate":{"id":"0x0c70037ef3d93a26e8a7250f1c963d4ac76abf6932a35d9a791f09c3b5e1c504","budget":9000,"spent":0,"revoked":false},"balance":10000,"booksSource":"standin","invoices":0}},"scene":"5b"},{"seq":34,"at":"2026-11-10T15:58:44.288Z","buyerId":"acme","type":"statement","summary":"statement STM-4502B18C $24.25 for 1 order(s) accepted by the buyer on chain: collectible once, from 2026-11-10 15:59 until 2026-11-10 16:04 UTC","data":{"statementId":"STM-4502B18C","mandateId":"0xdf8b576a0f1748802fbfa68558714c6ea7bad763ac29284d7327fc02fdfd5adf","tx":"0x143ddc2cb4faf9ac61a34a60689f3c837b39a1265791dd1191782126e810ee2a","total":2425},"scene":"6"},{"seq":35,"at":"2026-11-10T15:58:48.554Z","buyerId":"acme","type":"refused","summary":"chain refused collecting statement STM-4502B18C: mandate_outside_recurrence (refusal recorded on chain)","data":{"statementId":"STM-4502B18C","reason":"mandate_outside_recurrence","detail":"the mandate has not started yet, or its dates have ended","tx":"0x8143f9bc0ed4297e82e1900d39368ecd709f551a734f9187f4278d6c7a8948e2"},"scene":"6b"},{"seq":36,"at":"2026-11-10T16:00:05.092Z","buyerId":"acme","type":"collect","summary":"statement STM-4502B18C collected $24.25 through its own mandate","data":{"tx":"0xd5ebfb6a9cc6638c8d9badb20c0b0aa261b00b540303e3fae47f583f973d9b1a","statementId":"STM-4502B18C","paymentId":"0x4502b18cd641a0a725bafc6b5855bac90cc44a24fc8b410370fa6d53e0965d08","orders":["ord-mwavhryw-3"],"amount":2425},"scene":"6c"},{"seq":37,"at":"2026-11-10T16:00:08.361Z","buyerId":"acme","type":"refused","summary":"chain refused collecting statement STM-4502B18C: mandate_budget_spent (refusal recorded on chain)","data":{"statementId":"STM-4502B18C","reason":"mandate_budget_spent","detail":"the amount would take the mandate past its budget","tx":"0xfc3a1940669df09d7a6f9d2373c8f309826de4cba3b9c5a26537bd0db27699a2"},"scene":"6c"},{"seq":38,"at":"2026-11-10T16:00:10.725Z","buyerId":"acme","type":"decision","summary":"NET_30 · limit $51.06 · available $51.06","data":{"decision":{"buyerId":"acme","terms":"NET_30","limit":5106,"available":5106,"collectNow":0,"collectMax":5106,"escalate":0,"reasons":[{"code":"NET_30_EARNED","detail":"3/3 invoices paid on time"},{"code":"LIMIT_BY_ONCHAIN_BALANCE","detail":"buyer balance $51.06"},{"code":"LIMIT_TIGHTENED","detail":"$75.31 → $51.06"}]},"inputs":{"mandate":{"id":"0x7d1de89b15785d0d671cc265fb13817a533df302f06b7a1a2ce6f1620d57cd0e","budget":40000,"spent":18624,"revoked":false},"balance":5106,"booksSource":"t0","invoices":3}},"scene":"6c"},{"seq":39,"at":"2026-11-10T16:00:17.084Z","buyerId":"globex","type":"mandate","summary":"buyer's human replaced the mandate: budget $85.00","data":{"mandateId":"0xe4e279beb1a21e9d72ff3a4f6b5f4a6206d88e644e309e6fe56e303e1bfcb3f7","tx":"0xa7c539acf0c1c1c9ba6c82734e819c97e63cef2166160a83a1e57dd34f9672b5","budget":8500},"scene":"7"},{"seq":40,"at":"2026-11-10T16:00:21.100Z","buyerId":"globex","type":"decision","summary":"NET_7 · limit $85.00 · available $5.00","data":{"decision":{"buyerId":"globex","terms":"NET_7","limit":8500,"available":500,"collectNow":8000,"collectMax":8500,"escalate":0,"reasons":[{"code":"NET_7_DEFAULT","detail":"0/0 on time; net-30 needs 3 at ≥90%"},{"code":"LIMIT_BY_MANDATE_HEADROOM","detail":"mandate headroom $85.00"},{"code":"LIMIT_TIGHTENED","detail":"$90.00 → $85.00 (the buyer's human lowered the mandate to $85.00)"},{"code":"COLLECT_ALL","detail":"collect $80.00 now"}]},"inputs":{"mandate":{"id":"0xe4e279beb1a21e9d72ff3a4f6b5f4a6206d88e644e309e6fe56e303e1bfcb3f7","budget":8500,"spent":0,"revoked":false},"balance":10000,"booksSource":"standin","invoices":0}},"scene":"7"},{"seq":41,"at":"2026-11-10T16:00:31.545Z","buyerId":"globex","type":"collect","summary":"collected $80.00 for 1 order(s)","data":{"tx":"0xd073c3b4ec005cc9ba3c96dbacd6abeca1bb1014a250de26d6ce49b1bd3e3d21","paymentId":"0x5afe8cf8ad438d6cfc12ae0b37de493da1020d34ed30a87e858363bf5db14fcf","orders":["ord-mwavjbut-2"],"amount":8000,"creditApplied":0},"scene":"7"},{"seq":42,"at":"2026-11-10T16:00:33.875Z","buyerId":"globex","type":"decision","summary":"NET_7 · limit $5.00 · available $5.00","data":{"decision":{"buyerId":"globex","terms":"NET_7","limit":500,"available":500,"collectNow":0,"collectMax":500,"escalate":0,"reasons":[{"code":"NET_7_DEFAULT","detail":"0/0 on time; net-30 needs 3 at ≥90%"},{"code":"LIMIT_BY_MANDATE_HEADROOM","detail":"mandate headroom $5.00"},{"code":"LIMIT_TIGHTENED","detail":"$85.00 → $5.00"}]},"inputs":{"mandate":{"id":"0xe4e279beb1a21e9d72ff3a4f6b5f4a6206d88e644e309e6fe56e303e1bfcb3f7","budget":8500,"spent":8000,"revoked":false},"balance":2000,"booksSource":"standin","invoices":0}},"scene":"7"},{"seq":43,"at":"2026-11-10T16:00:36.021Z","buyerId":"acme","type":"settle","summary":"deposited $186.24 into Airwallex, kept $9.32 refund reserve, converted 176.92 USD → 225.47 SGD","data":{"depositId":"479cde27-eff6-498e-8a65-afa5076b8490","quoteId":"6441bac7-970c-3629-8f62-37d462d06d86","conversionId":"8bc6db2c-92a1-4e7a-8759-9a402e9ae2e8","rate":1.274446,"metalTx":"0xc72689e890c1cea4f028945cc7797f9f07ed5530bd4fb6a159ca110e53acdb0b"},"scene":"8"},{"seq":44,"at":"2026-11-10T16:00:37.555Z","buyerId":"acme","type":"books","summary":"booked in T:0 as JE-10: debit Airwallex cash, credit A/R $186.24","data":{"source":"t0","journalEntryId":"je_prod_8Q1xcuSQvyGPkZkJ","metalTx":"0xc72689e890c1cea4f028945cc7797f9f07ed5530bd4fb6a159ca110e53acdb0b"},"scene":"8"},{"seq":45,"at":"2026-11-10T16:00:39.163Z","buyerId":"acme","type":"settle","summary":"deposited $24.25 into Airwallex, kept $1.22 refund reserve, converted 23.03 USD → 29.35 SGD","data":{"depositId":"631c6fda-015c-4a55-b282-c68d713c6c27","quoteId":"8af41021-db68-31b1-9d7e-f990ac07cd19","conversionId":"2601a5b8-07a1-4a04-b0e2-ce1302f00624","rate":1.274446,"metalTx":"0xd5ebfb6a9cc6638c8d9badb20c0b0aa261b00b540303e3fae47f583f973d9b1a"},"scene":"8"},{"seq":46,"at":"2026-11-10T16:00:40.582Z","buyerId":"acme","type":"books","summary":"booked in T:0 as JE-11: debit Airwallex cash, credit A/R $24.25","data":{"source":"t0","journalEntryId":"je_prod_czIvKtSyTplbdJCJ","metalTx":"0xd5ebfb6a9cc6638c8d9badb20c0b0aa261b00b540303e3fae47f583f973d9b1a"},"scene":"8"},{"seq":47,"at":"2026-11-10T16:00:42.399Z","buyerId":"globex","type":"settle","summary":"deposited $80.00 into Airwallex, kept $4.00 refund reserve, converted 76 USD → 96.86 SGD","data":{"depositId":"a32ea8ce-2906-4c2e-b2d6-48b5cb9e5c88","quoteId":"ef3d2ca4-7351-3e21-b294-c7dde3a17ef2","conversionId":"de215efb-ee9e-486e-b557-b030c382d46f","rate":1.274446,"metalTx":"0xd073c3b4ec005cc9ba3c96dbacd6abeca1bb1014a250de26d6ce49b1bd3e3d21"},"scene":"8"},{"seq":48,"at":"2026-11-10T16:00:42.399Z","buyerId":"globex","type":"books","summary":"not booked in T:0: Globex sourcing agent has stand-in books (no matching T:0 customer, and this key cannot create one)","data":{"source":"standin","metalTx":"0xd073c3b4ec005cc9ba3c96dbacd6abeca1bb1014a250de26d6ce49b1bd3e3d21"},"scene":"8"},{"seq":49,"at":"2026-11-10T16:00:47.278Z","buyerId":"desk","type":"proof","summary":"21 checks across the desk, Metal, Airwallex and T:0 · 0 break(s)","data":{"checks":[{"name":"acme: charged − credits = collected + open − credit owed","ok":true,"detail":"$210.49 = $210.49 + $0.00 − $0.00"},{"name":"acme: no order collected twice","ok":true,"detail":"3 order(s), each collected once"},{"name":"acme: one transaction per payment-id","ok":true,"detail":"2 payment-id(s)"},{"name":"acme: every collected order is traceable","ok":true,"detail":"all traceable"},{"name":"acme: credits priced at what was charged","ok":true,"detail":"1 re-priced at the charged unit price"},{"name":"acme: statement STM-4502B18C refusals recorded on chain","ok":true,"detail":"2 refusal(s), 0 without a chain record","ids":["0x8143f9bc0ed4297e82e1900d39368ecd709f551a734f9187f4278d6c7a8948e2","0xfc3a1940669df09d7a6f9d2373c8f309826de4cba3b9c5a26537bd0db27699a2"]},{"name":"globex: charged − credits = collected + open − credit owed","ok":true,"detail":"$80.00 = $80.00 + $0.00 − $0.00"},{"name":"globex: no order collected twice","ok":true,"detail":"1 order(s), each collected once"},{"name":"globex: one transaction per payment-id","ok":true,"detail":"1 payment-id(s)"},{"name":"globex: every collected order is traceable","ok":true,"detail":"all traceable"},{"name":"globex: card captures = owed after credits, within the authorisation","ok":true,"detail":"$48.00 captured of $60.00 authorised on 1 order(s)"},{"name":"globex: credits priced at what was charged","ok":true,"detail":"1 re-priced at the charged unit price"},{"name":"every collection succeeded on chain","ok":true,"detail":"3/3 receipts status 0x1","ids":["0xc72689e890c1cea4f028945cc7797f9f07ed5530bd4fb6a159ca110e53acdb0b","0xd5ebfb6a9cc6638c8d9badb20c0b0aa261b00b540303e3fae47f583f973d9b1a","0xd073c3b4ec005cc9ba3c96dbacd6abeca1bb1014a250de26d6ce49b1bd3e3d21"]},{"name":"every collection moved exactly its amount from the buyer to Northwind","ok":true,"detail":"3/3 transfer logs match amount, buyer and payee","ids":["0xc72689e890c1cea4f028945cc7797f9f07ed5530bd4fb6a159ca110e53acdb0b","0xd5ebfb6a9cc6638c8d9badb20c0b0aa261b00b540303e3fae47f583f973d9b1a","0xd073c3b4ec005cc9ba3c96dbacd6abeca1bb1014a250de26d6ce49b1bd3e3d21"]},{"name":"every refusal is recorded on chain by Northwind","ok":true,"detail":"2/2 refusal txs succeeded, sent by the supplier","ids":["0x8143f9bc0ed4297e82e1900d39368ecd709f551a734f9187f4278d6c7a8948e2","0xfc3a1940669df09d7a6f9d2373c8f309826de4cba3b9c5a26537bd0db27699a2"]},{"name":"settlement of 0xc72689e8…","ok":true,"detail":"matches a collection; conversion SETTLED","ids":["479cde27-eff6-498e-8a65-afa5076b8490","8bc6db2c-92a1-4e7a-8759-9a402e9ae2e8"]},{"name":"settlement of 0xd5ebfb6a…","ok":true,"detail":"matches a collection; conversion SETTLED","ids":["631c6fda-015c-4a55-b282-c68d713c6c27","2601a5b8-07a1-4a04-b0e2-ce1302f00624"]},{"name":"settlement of 0xd073c3b4…","ok":true,"detail":"matches a collection; conversion SETTLED","ids":["a32ea8ce-2906-4c2e-b2d6-48b5cb9e5c88","de215efb-ee9e-486e-b557-b030c382d46f"]},{"name":"card capture int_sgpvfdzq7ho1a3akbg7","ok":true,"detail":"Airwallex captured $48.00 (SUCCEEDED); desk counted $48.00","ids":["int_sgpvfdzq7ho1a3akbg7"]},{"name":"T:0 journal je_prod_8Q1xcuSQvyGPkZkJ","ok":true,"detail":"tied to a collection; balanced 18624/18624; equals the $186.24 collected","ids":["je_prod_8Q1xcuSQvyGPkZkJ"]},{"name":"T:0 journal je_prod_czIvKtSyTplbdJCJ","ok":true,"detail":"tied to a collection; balanced 2425/2425; equals the $24.25 collected","ids":["je_prod_czIvKtSyTplbdJCJ"]}]},"scene":"9"}]};</script>
 <script>
+/* TAB desk UI: one app, two sources. Replay: window.__RUN__ (inlined by scripts/build-replay.ts).
+   Live: /api/state + /api/stream from src/server/server.ts. Everything shown is derived from the desk's event log. */
 (() => {
-  const RUN = JSON.parse(document.getElementById("run").textContent);
-  const EVENTS = RUN.events;
-  const NAMES = Object.fromEntries(RUN.buyers.map((b) => [b.id, b.name]));
-  const EXPLORER = "https://testnet.metalntwx.com/tx/";
-  const usd = (c) => (c == null ? "—" : "$" + (c / 100).toFixed(2));
-  const esc = (s) => String(s).replace(/[&<>"]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[m]));
+  "use strict";
+  const RUN = window.__RUN__ || null;
+  const LIVE = !RUN;
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const $ = (id) => document.getElementById(id);
+  const usd = (c) => (c == null ? "—" : "$" + (c / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+  const esc = (s) => String(s).replace(/[&<>"]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[m]);
   const short = (a) => (a && a.length > 14 ? a.slice(0, 8) + "…" + a.slice(-6) : a || "");
+  const cssVar = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim() || v;
+  const EXPLORER = "https://testnet.metalntwx.com/tx/";
+
+  let EVENTS = RUN ? RUN.events : [];
+  let BUYERS = RUN ? RUN.buyers : [];
+  let FAULTS = null;
+  let idx = EVENTS.length - 1;
+  let timer = null;
+  let speed = 1100;
+
+  // ── icons (24×24 stroke paths) ─────────────────────────────────────────
+  const ICON = {
+    dollar: "M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6",
+    link: "M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71",
+    card: "M3 6h18a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1ZM2 10h20M6 15h4",
+    stop: "M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86zM15 9l-6 6M9 9l6 6",
+    spark: "M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 17l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z",
+    pen: "M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z",
+    book: "M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5zM4 19.5V21h16v-4",
+    globe: "M12 2a10 10 0 1 0 0 20 10 10 0 1 0 0-20M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20",
+    gauge: "M12 14l4-4M3.3 19a9 9 0 1 1 17.4 0",
+    cart: "M6 6h15l-1.5 9h-12zM6 6 5 3H2M9 20h.01M18 20h.01",
+    minus: "M12 2a10 10 0 1 0 0 20 10 10 0 1 0 0-20M8 12h8",
+    msg: "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2z",
+    user: "M20 21a8 8 0 0 0-16 0M12 13a4 4 0 1 0 0-8 4 4 0 0 0 0 8",
+    shield: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10zM9 12l2 2 4-4",
+    bot: "M12 8V4H8M6 8h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2ZM9 14h.01M15 14h.01",
+    desk: "M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6",
+    flag: "M4 22V4M4 4h13l-2 4 2 4H4",
+  };
+  const svgIcon = (k) => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${ICON[k] || ICON.flag}"/></svg>`;
+  const TYPE_ICON = { collect: "dollar", mandate: "link", statement: "link", vic: "card", refused: "stop", collect_refused: "stop", agent: "spark", policy: "pen", books: "book", settle: "globe", decision: "gauge", order: "cart", credit: "minus", dispute: "msg", escalate: "user", proof: "shield" };
+  const TYPE_LABEL = { vic: "Visa", collect_refused: "pending", settle: "Airwallex", agent: "agent", policy: "CFO policy", books: "books", collect: "collected", refused: "refused", mandate: "mandate", statement: "statement" };
+
+  // ── scenes ─────────────────────────────────────────────────────────────
+  // From "scene" events (new runs) or from the builder's log-derived tags (older runs).
+  function sceneModel() {
+    const list = [];
+    const of = new Map();
+    let cur = null;
+    for (const e of EVENTS) {
+      if (e.type === "scene") {
+        cur = { key: e.data.key, title: e.data.title, firstSeq: e.seq };
+        list.push(cur);
+      } else if (e.scene) {
+        if (!cur || cur.key !== e.scene) {
+          const known = RUN && RUN.scenes ? RUN.scenes.find((s) => s.key === e.scene) : null;
+          cur = { key: e.scene, title: known ? known.title : e.scene, firstSeq: e.seq };
+          list.push(cur);
+        }
+      }
+      if (cur) of.set(e.seq, cur.key);
+    }
+    return { list, of };
+  }
+  let SCENES = sceneModel();
+
+  // ── state as of event i ────────────────────────────────────────────────
+  function stateAt(i) {
+    const buyers = Object.fromEntries(BUYERS.map((b) => [b.id, { ...b, decision: null, inputs: null, mandate: null, boundAfter: false, orders: new Map(), statements: new Map(), card: null, reached: new Set() }]));
+    const k = { terms: 0, collected: 0, refusedChain: 0, pulls: 0, refusals: 0, holds: 0, captured: 0, settled: 0, sgd: 0, journals: 0, proof: null };
+    const seenTx = new Set();
+    for (const e of EVENTS.slice(0, i + 1)) {
+      const d = e.data || {};
+      const b = buyers[e.buyerId];
+      if (e.type === "proof") { const c = d.checks || []; k.proof = { pass: c.filter((x) => x.ok).length, total: c.length }; }
+      if (e.type === "settle" && d.conversionId) { k.settled++; const m = /→ ([\d.]+) SGD/.exec(e.summary); if (m) k.sgd += Number(m[1]); }
+      if (e.type === "books" && d.journalEntryId) k.journals++;
+      if (e.type === "refused" && d.tx) { k.refusedChain++; k.refusals++; }
+      if (e.type === "collect" && d.tx && !seenTx.has(d.tx)) { seenTx.add(d.tx); k.collected += Number(d.amount || 0); k.pulls++; }
+      if (!b) continue;
+      if (e.type === "decision") {
+        b.decision = d.decision; b.inputs = d.inputs; b.mandate = d.inputs && d.inputs.mandate; b.boundAfter = false;
+        b.reached.add(d.decision.terms === "NET_30" ? 3 : d.decision.terms === "NET_7" ? 2 : 0);
+      }
+      if (e.type === "mandate") { b.mandate = { budget: d.budget, spent: 0 }; b.boundAfter = true; }
+      if (e.type === "order" && d.order) {
+        b.orders.set(d.order.id, { amount: d.order.amount, route: d.order.route, credited: 0, collected: false });
+        if (d.order.route === "ON_TAB" || d.order.route === "CARD_AUTH") k.terms += d.order.amount;
+      }
+      if (e.type === "credit" && b.orders.has(d.orderId)) b.orders.get(d.orderId).credited += d.amount || 0;
+      if (e.type === "collect") for (const id of d.orders || []) if (b.orders.has(id)) b.orders.get(id).collected = true;
+      if (e.type === "statement") b.statements.set(d.statementId, { id: d.statementId, total: d.total, status: "accepted", refusals: 0 });
+      if (e.type === "collect" && d.statementId && b.statements.has(d.statementId)) b.statements.get(d.statementId).status = "collected";
+      if (e.type === "refused" && d.statementId && b.statements.has(d.statementId)) b.statements.get(d.statementId).refusals++;
+      if (e.type === "vic" && d.checks && "authorised" in d.checks) { b.reached.add(1); b.card = { authorised: (d.orderIds || []).reduce((s, id) => s + (b.orders.get(id)?.amount || 0), 0), captured: null }; k.holds++; }
+      if (e.type === "vic" && d.captured != null) {
+        b.card = { authorised: d.authorised, captured: d.captured };
+        k.captured += d.captured; k.collected += d.captured;
+        for (const id of d.orderIds || []) if (b.orders.has(id)) b.orders.get(id).collected = true;
+      }
+    }
+    return { buyers: Object.values(buyers), k };
+  }
+
+  // ── header logo ────────────────────────────────────────────────────────
+  const mark = $("mark");
+  if (mark && mark.setCurrentTime) {
+    if (reduce) { mark.pauseAnimations(); mark.setCurrentTime(3); }
+    mark.addEventListener("mouseenter", () => { if (!reduce) mark.setCurrentTime(0); });
+    mark.addEventListener("click", () => { if (!reduce) mark.setCurrentTime(0); });
+  }
+
+  // ── rails map ──────────────────────────────────────────────────────────
+  const NODES = {
+    buyers: { x: 95, y: 150, w: 160, t: "Buyer agents", s: "Acme · Globex · Initech", c: "--info", ic: "bot" },
+    claude: { x: 335, y: 46, w: 160, t: "Claude", s: "reads and proposes", c: "--claude", ic: "spark" },
+    metal: { x: 335, y: 150, w: 160, t: "Metal", s: "debit mandates", c: "--metal", ic: "link" },
+    visa: { x: 335, y: 254, w: 160, t: "Visa · Airi", s: "passkey card hold", c: "--visa", ic: "card" },
+    desk: { x: 565, y: 150, w: 170, t: "Northwind desk", s: "code decides", c: "--accent", ic: "desk" },
+    cfo: { x: 565, y: 46, w: 160, t: "CFO policy", s: "signed goals", c: "--cfo", ic: "pen" },
+    t0: { x: 800, y: 96, w: 160, t: "T:0 books", s: "journal entries", c: "--t0", ic: "book" },
+    awx: { x: 800, y: 214, w: 160, t: "Airwallex", s: "settle · USD → SGD", c: "--awx", ic: "globe" },
+  };
+  const EDGES = {
+    "b-m": { d: "M175 150 L255 150" },
+    "m-d": { d: "M415 150 L480 150" },
+    "b-d": { d: "M120 124 C 210 88, 470 88, 545 124" },
+    "b-v": { d: "M150 176 C 185 254, 220 254, 255 254" },
+    "v-a": { d: "M415 254 C 560 254, 650 214, 720 214" },
+    "d-a": { d: "M650 162 C 690 162, 690 214, 720 214" },
+    "a-t": { d: "M800 188 L800 122" },
+    "c-b": { d: "M255 46 C 160 46, 112 80, 104 124", dashed: true },
+    "c-d": { d: "M415 52 C 480 58, 515 92, 530 124", dashed: true },
+    "f-d": { d: "M565 72 L565 124" },
+  };
+  const rails = $("rails");
+  let railSvg = null;
+  function buildRails() {
+    if (!rails) return;
+    const edges = Object.entries(EDGES).map(([id, e]) => `<path id="e-${id}" class="edge${e.dashed ? " dashed" : ""}" d="${e.d}"/>`).join("");
+    const nodes = Object.entries(NODES).map(([id, n]) => `
+      <g class="node" id="n-${id}" style="color:var(${n.c})">
+        <rect x="${n.x - n.w / 2}" y="${n.y - 26}" width="${n.w}" height="52" rx="13"/>
+        <g transform="translate(${n.x - n.w / 2 + 12} ${n.y - 11}) scale(0.92)"><path class="ic" d="${ICON[n.ic]}"/></g>
+        <text class="t" x="${n.x - n.w / 2 + 42}" y="${n.y - 2}">${n.t}</text>
+        <text class="s" x="${n.x - n.w / 2 + 42}" y="${n.y + 14}">${n.s}</text>
+      </g>`).join("");
+    rails.innerHTML = `<svg id="railsvg" viewBox="0 0 900 300" role="img" aria-label="How money and decisions move between the buyer agents, Metal, Visa via Airi, Northwind's desk, the CFO's policy, Airwallex and T:0">
+      <g>${edges}</g><g>${nodes}</g><g id="fx"></g></svg>`;
+    railSvg = $("railsvg");
+  }
+  buildRails();
+
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  function flash(node, colorVar, shake) {
+    const g = $("n-" + node);
+    if (!g) return;
+    const rect = g.querySelector("rect");
+    rect.style.stroke = cssVar(colorVar);
+    g.classList.add("flash");
+    if (shake) { g.classList.remove("shake"); void g.getBBox(); g.classList.add("shake"); }
+    setTimeout(() => { rect.style.stroke = ""; g.classList.remove("flash", "shake"); }, 700);
+  }
+  function stamp(node, text, colorVar) {
+    const n = NODES[node];
+    const fx = $("fx");
+    if (!n || !fx) return;
+    const t = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    t.setAttribute("x", n.x); t.setAttribute("y", n.y + 44); t.setAttribute("text-anchor", "middle");
+    t.setAttribute("class", "stamp"); t.style.fill = cssVar(colorVar); t.textContent = text;
+    fx.appendChild(t);
+    t.animate([{ opacity: 0, transform: "translateY(4px)" }, { opacity: 1, transform: "none", offset: 0.2 }, { opacity: 1, offset: 0.8 }, { opacity: 0 }], { duration: 1600, easing: "ease-out" }).onfinish = () => t.remove();
+  }
+  /** Moves a packet along an edge; `back` runs it in reverse; `bounce` stops short and rebounds (a refusal). */
+  function fly(edge, { color = "--accent", label = "", back = false, bounce = false, dur = 0 } = {}) {
+    const p = $("e-" + edge);
+    const fx = $("fx");
+    if (!p || !fx || reduce) return Promise.resolve();
+    const len = p.getTotalLength();
+    const ns = "http://www.w3.org/2000/svg";
+    const g = document.createElementNS(ns, "g");
+    const c = document.createElementNS(ns, "circle");
+    c.setAttribute("r", "7"); c.setAttribute("class", "packet"); c.style.fill = cssVar(color);
+    g.appendChild(c);
+    let t = null;
+    if (label) {
+      t = document.createElementNS(ns, "text");
+      t.setAttribute("class", "plabel"); t.setAttribute("text-anchor", "middle"); t.style.fill = cssVar(color); t.textContent = label;
+      g.appendChild(t);
+    }
+    fx.appendChild(g);
+    p.classList.add("hot"); p.style.stroke = cssVar(color);
+    const D = dur || Math.max(380, speed * 0.62);
+    const start = performance.now();
+    return new Promise((resolve) => {
+      const step = (now) => {
+        let u = Math.min(1, (now - start) / D);
+        const ease = u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
+        let f = ease;
+        if (bounce) f = u < 0.7 ? (ease / easeAt(0.7)) * 0.86 : 0.86 - (u - 0.7) * 1.2;
+        const at = p.getPointAtLength(len * (back ? 1 - f : f));
+        c.setAttribute("cx", at.x); c.setAttribute("cy", at.y);
+        if (t) { t.setAttribute("x", at.x); t.setAttribute("y", at.y - 12); }
+        if (bounce && u >= 0.7) g.style.opacity = String(Math.max(0, 1 - (u - 0.7) / 0.3));
+        if (u < 1) requestAnimationFrame(step);
+        else { g.remove(); p.classList.remove("hot"); p.style.stroke = ""; resolve(); }
+      };
+      requestAnimationFrame(step);
+    });
+  }
+  function easeAt(u) { return u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2; }
+
+  /** What each event looks like on the rails. */
+  async function animate(e) {
+    const d = e.data || {};
+    const amt = d.amount != null ? usd(Number(d.amount)) : "";
+    switch (e.type) {
+      case "scene": return;
+      case "order":
+        if (d.payNow) return fly("b-d", { color: "--info", label: "pay now" });
+        return fly("b-d", { color: "--info", label: d.order ? usd(d.order.amount) : "" });
+      case "agent": flash("claude", "--claude"); return fly("c-b", { color: "--claude", label: "agent" });
+      case "decision": flash("desk", "--accent"); return sleep(120);
+      case "policy": flash("claude", "--claude"); await fly("f-d", { color: "--cfo", label: "signed" }); flash("desk", "--cfo"); stamp("desk", "policy verified", "--cfo"); return;
+      case "mandate": await fly("b-m", { color: "--metal", label: d.budget != null ? `bind ${usd(d.budget)}` : "bind" }); flash("metal", "--metal"); return;
+      case "statement": await fly("b-m", { color: "--metal", label: "accept" }); flash("metal", "--metal"); stamp("metal", "statement = mandate", "--metal"); return;
+      case "collect":
+        if (!d.tx || /answered from the desk's record/.test(e.summary)) { flash("desk", "--accent"); stamp("desk", "nothing sent", "--muted"); return; }
+        await fly("b-m", { color: "--metal", label: amt });
+        flash("metal", "--metal");
+        await fly("m-d", { color: "--metal", label: amt });
+        flash("desk", "--metal");
+        if (/reconciled from the chain/.test(e.summary)) stamp("desk", "found on chain", "--metal");
+        return;
+      case "refused":
+        if (d.tx) { await fly("m-d", { color: "--bad", back: true, bounce: true, label: "pull" }); flash("metal", "--bad", true); stamp("metal", "refused on chain", "--bad"); return; }
+        await fly("b-d", { color: "--bad", bounce: true, label: "off-menu" }); flash("desk", "--bad", true); stamp("desk", "refused", "--bad"); return;
+      case "vic":
+        if (d.captured != null) { await fly("v-a", { color: "--visa", label: usd(d.captured) }); flash("awx", "--visa"); stamp("visa", `captured ${usd(d.captured)}`, "--visa"); return; }
+        if (d.checks && "authorised" in d.checks) { await fly("b-v", { color: "--visa", label: "hold" }); flash("visa", "--visa"); stamp("visa", "authorised, not taken", "--visa"); return; }
+        await fly("v-a", { color: "--visa", label: "verified" }); flash("awx", "--visa"); return;
+      case "credit": await fly("b-d", { color: "--warn", back: true, label: `−${amt}` }); return;
+      case "dispute": flash("claude", "--claude"); await fly("c-d", { color: "--claude", label: "claims" }); flash("desk", "--warn"); return;
+      case "escalate": flash("desk", "--bad"); stamp("desk", "to a person", "--bad"); return sleep(200);
+      case "settle": await fly("d-a", { color: "--awx", label: "→ SGD" }); flash("awx", "--awx"); return;
+      case "books": if (d.journalEntryId) { await fly("a-t", { color: "--t0", label: "JE" }); flash("t0", "--t0"); } return;
+      case "proof": for (const n of ["buyers", "metal", "visa", "desk", "awx", "t0"]) { flash(n, "--good"); await sleep(90); } stamp("desk", "every dollar proven", "--good"); return;
+      default: return;
+    }
+  }
+  let queue = Promise.resolve();
+  let qGen = 0;
+  const enqueue = (e) => { const gen = qGen; queue = queue.then(() => (gen === qGen ? animate(e) : null)).catch(() => {}); return queue; };
+  const clearQueue = () => { qGen++; queue = Promise.resolve(); };
+
+  // ── headline counters ──────────────────────────────────────────────────
+  const shown = {};
+  function countTo(id, value, fmt) {
+    const el = $(id);
+    if (!el) return;
+    const from = shown[id] ?? 0;
+    shown[id] = value;
+    const card = el.closest(".kpi");
+    if (from === value) { el.textContent = fmt(value); return; }
+    if (card) { card.classList.remove("bump"); void card.offsetWidth; card.classList.add("bump"); }
+    if (reduce) { el.textContent = fmt(value); return; }
+    const t0 = performance.now();
+    const step = (now) => {
+      const u = Math.min(1, (now - t0) / 650);
+      el.textContent = fmt(from + (value - from) * (1 - Math.pow(1 - u, 3)));
+      if (u < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+
+  // ── buyers ─────────────────────────────────────────────────────────────
   const REASON = {
-    NET_30_EARNED: "Earned net-30", NET_7_DEFAULT: "Net-7 (thin history)", LIMIT_BY_TERMS_CAP: "Capped by the policy's terms",
+    NET_30_EARNED: "Earned net-30", NET_7_DEFAULT: "Net-7: first rung", LIMIT_BY_TERMS_CAP: "Capped by the policy's terms",
     LIMIT_BY_MANDATE_HEADROOM: "Capped by the mandate its human signed", LIMIT_BY_ONCHAIN_BALANCE: "Capped by on-chain balance",
     LIMIT_TIGHTENED: "Limit tightened", DEMOTED_TO_PREPAY: "Demoted to prepay", COLLECT_ALL: "Collect everything now",
     COLLECT_EXCESS: "Collect the excess", ESCALATE_UNCOLLECTABLE: "Send to a person", OVERDUE_INVOICE: "Overdue in the books",
     NO_VIC_HISTORY: "No Visa-verified payment yet", NO_MANDATE: "No debit mandate", MANDATE_REVOKED: "Mandate revoked",
     MANDATE_EXPIRED: "Mandate expired", SUPPLIER_NOT_PAYEE: "Mandate doesn't name us",
   };
-  const LABEL = { vic: "Visa", collect_refused: "refused", settle: "Airwallex", agent: "buyer agent", policy: "CFO policy", books: "books" };
-  const sceneIndex = new Map(RUN.scenes.map((s, i) => [s.key, i]));
-
-  let idx = EVENTS.length - 1; // open on the finished run
-  let timer = null;
-
-  // ── state as of event i ─────────────────────────────────────────────
-  function stateAt(i) {
-    const buyers = Object.fromEntries(RUN.buyers.map((b) => [b.id, { ...b, decision: null, inputs: null, mandate: null, boundAfterDecision: false, orders: new Map(), statements: new Map(), card: null }]));
-    for (const e of EVENTS.slice(0, i + 1)) {
-      const b = buyers[e.buyerId];
-      const d = e.data || {};
-      if (!b) continue;
-      if (e.type === "decision") { b.decision = d.decision; b.inputs = d.inputs; b.mandate = d.inputs && d.inputs.mandate; b.boundAfterDecision = false; }
-      // A mandate bound after the last logged decision: show it, and drop the decision's now-stale "no mandate" reason.
-      if (e.type === "mandate") { b.mandate = { budget: d.budget, spent: 0 }; b.boundAfterDecision = true; }
-      if (e.type === "order" && d.order) b.orders.set(d.order.id, { amount: d.order.amount, route: d.order.route, credited: 0, collected: false });
-      if (e.type === "credit" && b.orders.has(d.orderId)) b.orders.get(d.orderId).credited += d.amount || 0;
-      if (e.type === "collect") for (const id of d.orders || []) if (b.orders.has(id)) b.orders.get(id).collected = true;
-      if (e.type === "statement") b.statements.set(d.statementId, { id: d.statementId, total: d.total, status: "accepted", refusals: 0 });
-      if (e.type === "collect" && d.statementId && b.statements.has(d.statementId)) b.statements.get(d.statementId).status = "collected";
-      if (e.type === "refused" && d.statementId && b.statements.has(d.statementId)) b.statements.get(d.statementId).refusals++;
-      if (e.type === "vic" && d.checks && "authorised" in d.checks) b.card = { authorised: (d.orderIds || []).reduce((s, id) => s + (b.orders.get(id)?.amount || 0), 0), captured: null };
-      if (e.type === "vic" && d.captured != null) { b.card = { authorised: d.authorised, captured: d.captured }; for (const id of d.orderIds || []) if (b.orders.has(id)) b.orders.get(id).collected = true; }
-    }
-    return Object.values(buyers);
+  const AV = { acme: "--info", globex: "--visa", initech: "--muted" };
+  const RUNGS = [["Prepay", "pay now"], ["Card tab", "Visa hold"], ["Net-7", "7 days"], ["Net-30", "30 days"]];
+  function ladder(b) {
+    const terms = b.decision ? b.decision.terms : "PREPAY";
+    const overdue = b.decision && b.decision.reasons.some((r) => r.code === "OVERDUE_INVOICE");
+    const now = terms === "NET_30" ? 3 : terms === "NET_7" ? 2 : b.card && b.card.captured == null ? 1 : 0;
+    return `<div class="ladder" role="list" aria-label="Credit ladder">${RUNGS.map(([t, s], i) => {
+      let cls = "rung";
+      // ✓ only on rungs this buyer actually stood on; rungs it skipped stay plain.
+      if (i === now) cls += " now";
+      else if (i < now && b.reached.has(i)) cls += " past";
+      else if (i > now && overdue) cls += " blocked";
+      return `<div class="${cls}" role="listitem">${t}<small>${s}</small></div>`;
+    }).join("")}</div>`;
   }
-
-  function renderBuyers(i) {
-    document.getElementById("buyers").innerHTML = stateAt(i).map((b) => {
+  function renderBuyers(st) {
+    const el = $("buyers");
+    if (!el) return;
+    if (!st.buyers.length) { el.innerHTML = '<div class="card empty">Waiting for the desk…</div>'; return; }
+    el.innerHTML = st.buyers.map((b) => {
       const dec = b.decision;
       const tab = [...b.orders.values()].filter((o) => o.route === "ON_TAB" && !o.collected);
       const owed = tab.reduce((s, o) => s + o.amount - o.credited, 0);
       const limit = dec ? dec.limit : 0;
       const used = limit > 0 ? Math.min(100, (owed / limit) * 100) : 0;
       const m = b.mandate;
-      const reasons = dec ? dec.reasons.filter((r) => !(b.boundAfterDecision && r.code === "NO_MANDATE")) : [];
       const books = b.inputs && b.inputs.booksSource;
       const terms = dec ? dec.terms : "none";
+      const reasons = dec ? dec.reasons.filter((r) => !(b.boundAfter && r.code === "NO_MANDATE")) : [];
       return `<article class="card">
-        <div class="row"><div><div class="name">${esc(b.name)}</div><div class="addr">${esc(short(b.account))}</div></div>
+        <div class="row"><div class="who-av"><div class="av" style="background:var(${AV[b.id] || "--info"})">${esc(b.name.slice(0, 1))}</div><div><div class="name">${esc(b.name)}</div><div class="addr">${esc(short(b.account))}</div></div></div>
           <span class="badge ${esc(terms)}">${esc(dec ? String(terms).replace("_", "-") : "not assessed")}</span></div>
+        ${ladder(b)}
         <div class="limit"><span class="big">${usd(limit)}</span><span class="lbl">credit limit</span></div>
         <div class="bar"><i style="width:${used}%"></i></div>
-        <div class="legend"><span>${usd(owed)} on the tab · ${tab.length} open order(s)</span><span>${dec ? usd(Math.max(0, limit - owed)) : "—"} available</span></div>
+        <div class="legend2"><span>${usd(owed)} on the tab · ${tab.length} open</span><span>${dec ? usd(Math.max(0, limit - owed)) : "—"} available</span></div>
         <dl>
           <dt>Debit mandate</dt><dd>${m ? `${usd(m.spent)} of ${usd(m.budget)} pulled` : "none"}</dd>
           <dt>On-chain balance</dt><dd>${b.inputs && b.inputs.balance != null ? usd(b.inputs.balance) + " USDZ" : "—"}</dd>
-          ${b.card ? `<dt>Visa-secured tab</dt><dd>${b.card.captured != null ? `${usd(b.card.captured)} captured of ${usd(b.card.authorised)} held` : `${usd(b.card.authorised)} held, not captured`}</dd>` : ""}
+          ${b.card ? `<dt>Visa-secured tab</dt><dd>${b.card.captured != null ? `${usd(b.card.captured)} captured of ${usd(b.card.authorised)} held` : `${usd(b.card.authorised)} held, not taken`}</dd>` : ""}
           ${[...b.statements.values()].map((s) => `<dt>Statement ${esc(s.id)}</dt><dd>${usd(s.total)} · ${esc(s.status)}${s.refusals ? ` · ${s.refusals} refused on chain` : ""}</dd>`).join("")}
           <dt>Books</dt><dd>${books === "t0" ? '<span class="tag t0">T:0</span>' : books ? '<span class="tag">stand-in</span>' : "—"}</dd>
         </dl>
-        ${dec ? `<ul class="why">${reasons.slice(0, 4).map((r) => `<li><b>${esc(REASON[r.code] || r.code)}</b> · ${esc(r.detail)}</li>`).join("")}</ul>` : ""}
+        ${reasons.length ? `<ul class="why">${reasons.slice(0, 4).map((r) => `<li><b>${esc(REASON[r.code] || r.code)}</b> · ${esc(r.detail)}</li>`).join("")}</ul>` : ""}
       </article>`;
     }).join("");
   }
 
-  // ── proof panel ────────────────────────────────────────────────────
+  // ── proof ──────────────────────────────────────────────────────────────
   const checkLi = (c) => `<li><span class="${c.ok ? "ok" : "bad"}">${c.ok ? "✔" : "✘"}</span> ${esc(c.name)}<br><small>${esc(c.detail)}</small></li>`;
+  let lastProofSeq = null;
   function renderProof(i) {
     const p = EVENTS.slice(0, i + 1).filter((e) => e.type === "proof").at(-1);
-    const el = document.getElementById("proof");
-    if (!p) { el.innerHTML = ""; return; }
+    const el = $("proof");
+    if (!el) return;
+    if (!p) { el.innerHTML = tryPanel() ? `<div class="proof">${tryPanel()}</div>` : ""; lastProofSeq = null; return; }
     const checks = p.data.checks || [];
     const breaks = checks.filter((c) => !c.ok).length;
+    const names = Object.fromEntries(BUYERS.map((b) => [b.id, b.name]));
     const groups = new Map();
     const live = [];
     for (const c of checks) {
       const m = /^([a-z0-9-]+): (.*)$/.exec(c.name);
-      if (m && NAMES[m[1]]) (groups.get(m[1]) || groups.set(m[1], []).get(m[1])).push({ ...c, name: m[2] });
+      if (m && names[m[1]]) (groups.get(m[1]) || groups.set(m[1], []).get(m[1])).push({ ...c, name: m[2] });
       else live.push(c);
     }
     const g = [...groups.entries()].map(([id, cs]) => {
       const bad = cs.filter((c) => !c.ok).length;
-      return `<details${bad ? " open" : ""}><summary><span class="${bad ? "bad" : "ok"}">${bad ? "✘" : "✔"}</span> ${esc(NAMES[id])}'s books · ${cs.length - bad}/${cs.length}</summary><ul>${cs.map(checkLi).join("")}</ul></details>`;
+      return `<details${bad ? " open" : ""}><summary><span class="${bad ? "bad" : "ok"}">${bad ? "✘" : "✔"}</span> ${esc(names[id])}'s books · ${cs.length - bad}/${cs.length}</summary><ul>${cs.map(checkLi).join("")}</ul></details>`;
     }).join("");
-    el.innerHTML = `<div class="proof"><div class="head"><b>Every dollar proven</b><span class="${breaks ? "bad" : "ok"}">${checks.length - breaks}/${checks.length} checks pass</span></div>${g}<ul>${live.map(checkLi).join("")}</ul></div>`;
+    const fresh = lastProofSeq !== p.seq;
+    lastProofSeq = p.seq;
+    el.innerHTML = `<div class="proof${fresh && !reduce ? " sweep" : ""}"><div class="head"><b>Every dollar proven</b><span class="${breaks ? "bad" : "ok"}">${checks.length - breaks}/${checks.length} checks pass</span></div>
+      ${/^after "/.test(p.summary) ? `<p class="detail" style="margin:8px 0 0">${esc(p.summary)}</p>` : ""}${g}<ul>${live.map(checkLi).join("")}</ul>${tryPanel()}</div>`;
   }
+  let tryResult = "";
+  function tryPanel() {
+    if (!FAULTS) return "";
+    const buttons = Object.entries(FAULTS).map(([k, label]) => `<button class="btn" type="button" data-fault="${esc(k)}">${esc(label)}</button>`).join("");
+    return `<div class="try"><b>Try to make TAB double-charge</b>${buttons}<output id="tryOut">${esc(tryResult)}</output></div>`;
+  }
+  document.addEventListener("click", async (ev) => {
+    const btn = ev.target.closest && ev.target.closest("button[data-fault]");
+    if (!btn) return;
+    document.querySelectorAll("button[data-fault]").forEach((x) => (x.disabled = true));
+    tryResult = "sending to Metal testnet…";
+    const o = $("tryOut"); if (o) o.textContent = tryResult;
+    try { tryResult = (await fetch(`/api/try/${btn.dataset.fault}`, { method: "POST" }).then((x) => x.json())).message; } catch (e) { tryResult = String(e); }
+    const o2 = $("tryOut"); if (o2) o2.textContent = tryResult;
+    document.querySelectorAll("button[data-fault]").forEach((x) => (x.disabled = false));
+  });
 
-  // ── event log ──────────────────────────────────────────────────────
+  // ── event log ──────────────────────────────────────────────────────────
   function ids(d) {
     const out = [];
     const tx = d.tx || d.metalTx;
@@ -307,7 +716,7 @@
     if (d.mandateId) out.push(`mandate ${esc(short(d.mandateId))}`);
     if (d.paymentIntentId) out.push(`Airwallex payment ${esc(d.paymentIntentId)}`);
     if (d.airiMandateId) out.push(`Airi mandate ${esc(d.airiMandateId)}`);
-    if (d.depositId) out.push(`Airwallex deposit ${esc(short(d.depositId))}`);
+    if (d.depositId) out.push(`deposit ${esc(short(d.depositId))}`);
     if (d.conversionId) out.push(`conversion ${esc(short(d.conversionId))}`);
     if (d.journalEntryId) out.push(`T:0 journal ${esc(d.journalEntryId)}`);
     if (d.model) out.push(`model ${esc(d.model)}`);
@@ -319,91 +728,143 @@
       const rows = [];
       if (d.goals) rows.push(`<div>CFO typed: <q>${esc(d.goals)}</q></div>`);
       for (const r of d.diff || []) rows.push(`<div>Dry run · ${esc(r.name)}: ${esc(r.before.terms)} ${usd(r.before.limit)} → ${esc(r.after.terms)} ${usd(r.after.limit)}${r.wouldCollect ? ` · would collect ${usd(r.wouldCollect)}` : ""}</div>`);
-      if (d.kid) rows.push(`<div>Signed with Northwind's issuer key (${esc(short(d.kid))}); the desk applies only a policy whose signature verifies.</div>`);
+      if (d.kid) rows.push(`<div>Signed with the CFO's key (${esc(short(d.kid))}); the desk verified the signature itself before applying it.</div>`);
       return `<div class="detail">${rows.join("")}</div>`;
     }
     if (e.type === "dispute" && d.summary) return `<div class="detail"><div>Claude's reading: ${esc(d.summary)}</div></div>`;
     return "";
   }
+  const names = () => Object.fromEntries(BUYERS.map((b) => [b.id, b.name]));
   function eventRow(e, now) {
     const t = new Date(e.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-    const who = e.buyerId && e.buyerId !== "desk" ? `<span class="who">${esc(NAMES[e.buyerId] || e.buyerId)}</span>` : `<span class="who">Northwind desk</span>`;
-    const label = LABEL[e.type] || e.type.replace("_", " ");
-    return `<li class="ev ${esc(e.type)}${now ? " now" : ""}"><time>${t}</time><span class="pill p-${esc(e.type)}">${esc(label)}</span><div class="sum">${who}<div class="text">${esc(e.summary)}</div>${detail(e)}${ids(e.data || {})}</div></li>`;
+    const who = e.buyerId && e.buyerId !== "desk" ? names()[e.buyerId] || e.buyerId : "Northwind desk";
+    const label = TYPE_LABEL[e.type] || e.type.replace("_", " ");
+    return `<li class="ev ${esc(e.type)}${now ? " now" : ""}"><span class="ico t-${esc(e.type)}">${svgIcon(TYPE_ICON[e.type])}</span><time>${t}</time>
+      <div class="sum"><div class="who">${esc(who)} <span class="pill t-${esc(e.type)}">${esc(label)}</span></div><div class="text">${esc(e.summary)}</div>${detail(e)}${ids(e.data || {})}</div></li>`;
   }
-  function renderTimeline(i) {
-    const shown = EVENTS.slice(0, i + 1);
-    document.getElementById("timeline").innerHTML = shown.length
-      ? shown.slice().reverse().map((e, k) => eventRow(e, k === 0 && timer !== null)).join("")
-      : `<li class="empty">Press Play to start the run.</li>`;
-  }
-
-  // ── player ─────────────────────────────────────────────────────────
-  const sceneButtons = RUN.scenes.map((s, k) => `<button type="button" data-k="${k}" title="${esc(s.title)}">${esc(s.key)}</button>`).join("");
-  document.getElementById("scenes").innerHTML = sceneButtons;
-  const scrub = document.getElementById("scrub");
-  scrub.max = String(EVENTS.length);
-
-  function currentScene(i) {
-    if (i < 0) return null;
-    return sceneIndex.get(EVENTS[i].scene) ?? null;
-  }
-  function render() {
-    renderBuyers(idx);
-    renderProof(idx);
-    renderTimeline(idx);
-    const k = currentScene(idx);
-    const s = k === null ? null : RUN.scenes[k];
-    document.getElementById("caption").innerHTML = s ? `<span>${esc(s.key)}</span>${esc(s.title)}` : "Before the run: no buyer has credit yet.";
-    document.querySelectorAll("#scenes button").forEach((b) => {
-      const n = Number(b.dataset.k);
-      b.classList.toggle("on", n === k);
-      b.classList.toggle("done", k !== null && n < k);
+  function renderTimeline(i, highlight) {
+    const el = $("timeline");
+    if (!el) return;
+    const shownEv = EVENTS.slice(0, i + 1);
+    if (!shownEv.length) { el.innerHTML = `<li class="empty">${LIVE ? "Waiting for the desk…" : "Press Play to start the run."}</li>`; return; }
+    // Newest first; each scene's header sits above its newest event.
+    const out = [];
+    let prev;
+    shownEv.slice().reverse().filter((e) => e.type !== "scene").forEach((e, k) => {
+      const sk = SCENES.of.get(e.seq) ?? null;
+      if (sk && sk !== prev) {
+        const s = SCENES.list.find((x) => x.key === sk);
+        out.push(`<li class="scene-row"><b>${esc(sk)}</b>${esc(s ? s.title : "")}</li>`);
+      }
+      prev = sk;
+      out.push(eventRow(e, highlight && k === 0));
     });
-    scrub.value = String(idx + 1);
-    document.getElementById("pos").textContent = `event ${idx + 1} of ${EVENTS.length}`;
-    document.getElementById("back").disabled = idx < 0;
-    document.getElementById("fwd").disabled = idx >= EVENTS.length - 1;
+    el.innerHTML = out.join("");
   }
-  function stop() {
-    if (timer !== null) clearInterval(timer);
-    timer = null;
-    document.getElementById("play").textContent = "▶ Play";
+
+  // ── render everything as of idx ────────────────────────────────────────
+  function render(highlight) {
+    const st = stateAt(idx);
+    renderBuyers(st);
+    renderProof(idx);
+    renderTimeline(idx, highlight);
+    countTo("k-terms", st.k.terms, (v) => usd(Math.round(v)));
+    countTo("k-collected", st.k.collected, (v) => usd(Math.round(v)));
+    countTo("k-refused", st.k.refusedChain, (v) => String(Math.round(v)));
+    const pr = $("k-proof");
+    if (pr) pr.textContent = st.k.proof ? `${st.k.proof.pass}/${st.k.proof.total}` : "—";
+    const stats = $("railstats");
+    if (stats) stats.innerHTML = `<span><i style="background:var(--metal)"></i>Metal: ${st.k.pulls} pull(s), ${st.k.refusals} refusal(s) recorded</span><span><i style="background:var(--visa)"></i>Visa: ${st.k.holds} hold(s), ${usd(st.k.captured)} captured</span><span><i style="background:var(--awx)"></i>Airwallex: ${st.k.settled} settled → ${st.k.sgd.toFixed(2)} SGD</span><span><i style="background:var(--t0)"></i>T:0: ${st.k.journals} journal entr${st.k.journals === 1 ? "y" : "ies"}</span>`;
+    const sk = idx >= 0 ? SCENES.of.get(EVENTS[idx].seq) : null;
+    const s = sk ? SCENES.list.find((x) => x.key === sk) : null;
+    const cap = $("caption");
+    if (cap) cap.innerHTML = s ? `<b>${esc(s.key)}</b>${esc(s.title)}` : LIVE ? "Waiting for the next scene…" : "Before the run: no buyer has credit yet.";
+    const k = s ? SCENES.list.indexOf(s) : -1;
+    document.querySelectorAll("#scenes button").forEach((b) => { const n = Number(b.dataset.k); b.classList.toggle("on", n === k); b.classList.toggle("done", k >= 0 && n < k); });
+    const scrub = $("scrub");
+    if (scrub) { scrub.max = String(EVENTS.length); scrub.value = String(idx + 1); }
+    const pos = $("pos");
+    if (pos) pos.textContent = `event ${idx + 1} of ${EVENTS.length}`;
+    const back = $("back"); if (back) back.disabled = idx < 0;
+    const fwd = $("fwd"); if (fwd) fwd.disabled = idx >= EVENTS.length - 1;
   }
-  function tick() {
-    if (idx >= EVENTS.length - 1) { stop(); render(); return; }
+  function renderScenes() {
+    const el = $("scenes");
+    if (el) el.innerHTML = SCENES.list.map((s, k) => `<button type="button" data-k="${k}" title="${esc(s.title)}">${esc(s.key)}</button>`).join("");
+  }
+
+  // ── player (replay) ────────────────────────────────────────────────────
+  function stop() { if (timer !== null) clearTimeout(timer); timer = null; const p = $("play"); if (p) p.innerHTML = "▶ Play"; }
+  async function tick() {
+    if (idx >= EVENTS.length - 1) { stop(); render(false); return; }
     idx++;
-    render();
+    render(true);
+    await enqueue(EVENTS[idx]);
+    if (timer !== null) timer = setTimeout(tick, Math.max(150, speed * 0.35));
   }
   function play() {
     if (idx >= EVENTS.length - 1) idx = -1;
-    timer = setInterval(tick, Number(document.getElementById("speed").value));
-    document.getElementById("play").textContent = "❚❚ Pause";
-    render();
+    clearQueue();
+    const p = $("play"); if (p) p.innerHTML = "❚❚ Pause";
+    timer = setTimeout(tick, 50);
   }
-  document.getElementById("play").addEventListener("click", () => (timer === null ? play() : (stop(), render())));
-  document.getElementById("restart").addEventListener("click", () => { stop(); idx = -1; render(); });
-  document.getElementById("back").addEventListener("click", () => { stop(); idx = Math.max(-1, idx - 1); render(); });
-  document.getElementById("fwd").addEventListener("click", () => { stop(); idx = Math.min(EVENTS.length - 1, idx + 1); render(); });
-  document.getElementById("speed").addEventListener("change", () => { if (timer !== null) { stop(); play(); } });
-  scrub.addEventListener("input", () => { stop(); idx = Number(scrub.value) - 1; render(); });
-  document.getElementById("scenes").addEventListener("click", (ev) => {
-    const b = ev.target.closest("button[data-k]");
-    if (!b) return;
-    stop();
-    const s = RUN.scenes[Number(b.dataset.k)];
-    const at = EVENTS.findIndex((e) => e.seq === s.firstSeq);
-    // Show the whole scene: every event up to the start of the next one.
-    const nextScene = RUN.scenes[Number(b.dataset.k) + 1];
-    const end = nextScene ? EVENTS.findIndex((e) => e.seq === nextScene.firstSeq) - 1 : EVENTS.length - 1;
-    idx = Math.max(at, end);
-    render();
-  });
+  function jump(to) { stop(); clearQueue(); idx = Math.max(-1, Math.min(EVENTS.length - 1, to)); render(false); }
+  function wirePlayer() {
+    if (LIVE) return;
+    $("play").addEventListener("click", () => (timer === null ? play() : (stop(), render(false))));
+    $("restart").addEventListener("click", () => jump(-1));
+    $("back").addEventListener("click", () => jump(idx - 1));
+    $("fwd").addEventListener("click", () => { stop(); clearQueue(); if (idx < EVENTS.length - 1) { idx++; render(true); enqueue(EVENTS[idx]); } });
+    $("speed").addEventListener("change", (e) => { speed = Number(e.target.value); });
+    $("scrub").addEventListener("input", (e) => jump(Number(e.target.value) - 1));
+    $("scenes").addEventListener("click", (ev) => {
+      const b = ev.target.closest("button[data-k]");
+      if (!b) return;
+      const k = Number(b.dataset.k);
+      const next = SCENES.list[k + 1];
+      const end = next ? EVENTS.findIndex((e) => e.seq === next.firstSeq) - 1 : EVENTS.length - 1;
+      jump(end);
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.target.closest && e.target.closest("input, select, textarea")) return;
+      if (e.key === " ") { e.preventDefault(); $("play").click(); }
+      if (e.key === "ArrowRight") $("fwd").click();
+      if (e.key === "ArrowLeft") $("back").click();
+    });
+  }
 
-  document.getElementById("runId").textContent = `run ${RUN.run}`;
-  document.getElementById("ranAt").textContent = new Date(RUN.ranAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
-  render();
+  // ── boot ───────────────────────────────────────────────────────────────
+  async function boot() {
+    document.body.classList.toggle("is-live", LIVE);
+    const mode = $("mode");
+    if (LIVE) {
+      if (mode) { mode.classList.add("live"); mode.innerHTML = "<i></i>Live desk"; }
+      const s = await fetch("/api/state").then((r) => r.json());
+      EVENTS = s.events; BUYERS = s.buyers; FAULTS = s.faults;
+      idx = EVENTS.length - 1;
+      SCENES = sceneModel(); renderScenes(); render(false);
+      const foot = $("source"); if (foot) foot.textContent = `Desk log: ${s.deskFile}.`;
+      const es = new EventSource(`/api/stream?after=${EVENTS.length ? EVENTS.at(-1).seq : 0}`);
+      es.onmessage = (m) => {
+        const d = JSON.parse(m.data);
+        if (d.reset) { location.reload(); return; }
+        if (d.buyers) BUYERS = d.buyers;
+        for (const e of d.events) {
+          EVENTS.push(e);
+          SCENES = sceneModel(); renderScenes();
+          enqueue(e).then(() => { idx = EVENTS.indexOf(e); render(true); });
+        }
+      };
+    } else {
+      if (mode) mode.innerHTML = `<i></i>Replay · run ${esc(RUN.run)}`;
+      const runId = $("runId"); if (runId) runId.textContent = `run ${RUN.run}`;
+      const ranAt = $("ranAt"); if (ranAt) ranAt.textContent = new Date(RUN.ranAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" });
+      renderScenes(); render(false); wirePlayer();
+    }
+  }
+  boot();
 })();
+
 </script>
 </body>
 </html>

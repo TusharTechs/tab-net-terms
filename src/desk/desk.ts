@@ -104,7 +104,7 @@ export interface DeskEvent {
   seq: number;
   at: string;
   buyerId: string;
-  type: "order" | "decision" | "collect" | "collect_refused" | "escalate" | "credit" | "dispute" | "vic" | "mandate" | "books" | "settle" | "agent" | "refused" | "statement" | "proof" | "policy";
+  type: "order" | "decision" | "collect" | "collect_refused" | "escalate" | "credit" | "dispute" | "vic" | "mandate" | "books" | "settle" | "agent" | "refused" | "statement" | "proof" | "policy" | "scene";
   summary: string;
   data: Record<string, unknown>;
 }
@@ -407,6 +407,12 @@ export class Desk {
   }
 
   /** Records the result of the "every dollar proven" checks. */
+  /** A demo scene starts: the screen and the replay show it as a caption and group the log by it. */
+  recordScene(key: string, title: string, run?: string) {
+    this.emit("desk", "scene", title, { key, title, ...(run ? { run } : {}) });
+    this.deps.persist?.(this.state);
+  }
+
   recordProof(summary: string, checks: unknown[]) {
     this.emit("desk", "proof", summary, { checks });
   }

@@ -66,7 +66,14 @@ const desk = new Desk(state, {
 });
 const target = claude();
 
-const say = (s: string) => console.log(`\n■ ${s}`);
+/** Prints the scene heading and records it in the desk log, so the screen and the replay show it too. */
+const say = (s: string) => {
+  tail(); // print anything still pending under the previous scene first
+  console.log(`\n■ ${s}`);
+  const m = /^(\S+) · (.+)$/.exec(s);
+  if (m) desk.recordScene(m[1]!, m[2]!, run);
+  mark = state.events.length; // the scene marker itself is not printed again as an event line
+};
 let mark = 0;
 const tail = () => {
   state.events.slice(mark).forEach((e) => console.log(`  [${e.buyerId}/${e.type}] ${e.summary.length > 260 ? `${e.summary.slice(0, 260)}…` : e.summary}${e.data.tx ? `  tx ${e.data.tx}` : ""}`));

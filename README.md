@@ -1,3 +1,5 @@
+<p align="center"><img src="public/logo.svg" width="96" height="96" alt="TAB logo: a buyer's tab, paid later, landing as a check"></p>
+
 # TAB — net terms for AI agents
 
 **Every other agent-payments project teaches agents to hear "no". TAB says "yes, pay later" — and still gets paid.**
