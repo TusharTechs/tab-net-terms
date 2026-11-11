@@ -70,7 +70,7 @@
   // ── state as of event i ────────────────────────────────────────────────
   function stateAt(i) {
     const buyers = Object.fromEntries(BUYERS.map((b) => [b.id, { ...b, decision: null, inputs: null, mandate: null, boundAfter: false, orders: new Map(), statements: new Map(), card: null, reached: new Set() }]));
-    const k = { terms: 0, collected: 0, refusedChain: 0, pulls: 0, refusals: 0, holds: 0, captured: 0, settled: 0, sgd: 0, journals: 0, proof: null, payouts: 0, payoutSgd: 0, held: 0 };
+    const k = { terms: 0, collected: 0, refusedChain: 0, pulls: 0, refusals: 0, holds: 0, captured: 0, settled: 0, sgd: 0, journals: 0, proof: null, payouts: 0, payoutSgd: 0, held: 0, payRefused: 0 };
     const seenTx = new Set();
     for (const e of EVENTS.slice(0, i + 1)) {
       const d = e.data || {};
@@ -79,7 +79,7 @@
       if (e.type === "settle" && d.conversionId) { k.settled++; const m = /→ ([\d.]+) SGD/.exec(e.summary); if (m) k.sgd += Number(m[1]); }
       if (e.type === "books" && d.journalEntryId) k.journals++;
       if (e.type === "payout") { k.payouts++; k.payoutSgd += Number(d.sgdCents || 0); }
-      if (d.payoutHeld) k.held++;
+      if (d.payoutHeld) { if (e.type === "refused") k.payRefused++; else k.held++; }
       if (e.type === "refused" && d.tx) { k.refusedChain++; k.refusals++; }
       if (e.type === "collect" && d.tx && !seenTx.has(d.tx)) { seenTx.add(d.tx); k.collected += Number(d.amount || 0); k.pulls++; }
       if (!b) continue;
@@ -454,7 +454,7 @@
     const pr = $("k-proof");
     if (pr) pr.textContent = st.k.proof ? `${st.k.proof.pass}/${st.k.proof.total}` : "—";
     const stats = $("railstats");
-    if (stats) stats.innerHTML = `<span><i style="background:var(--metal)"></i>Metal: ${st.k.pulls} pull(s), ${st.k.refusals} refusal(s) recorded</span><span><i style="background:var(--visa)"></i>Visa: ${st.k.holds} hold(s), ${usd(st.k.captured)} captured</span><span><i style="background:var(--awx)"></i>Airwallex: ${st.k.settled} settled → ${st.k.sgd.toFixed(2)} SGD</span><span><i style="background:var(--t0)"></i>T:0: ${st.k.journals} journal entr${st.k.journals === 1 ? "y" : "ies"}</span><span><i style="background:var(--awx)"></i>Vendor: ${st.k.payouts} bill(s) paid from SGD ${(st.k.payoutSgd / 100).toFixed(2)}, ${st.k.held} held</span>`;
+    if (stats) stats.innerHTML = `<span><i style="background:var(--metal)"></i>Metal: ${st.k.pulls} pull(s), ${st.k.refusals} refusal(s) recorded</span><span><i style="background:var(--visa)"></i>Visa: ${st.k.holds} hold(s), ${usd(st.k.captured)} captured</span><span><i style="background:var(--awx)"></i>Airwallex: ${st.k.settled} settled → ${st.k.sgd.toFixed(2)} SGD</span><span><i style="background:var(--t0)"></i>T:0: ${st.k.journals} journal entr${st.k.journals === 1 ? "y" : "ies"}</span><span><i style="background:var(--awx)"></i>Vendor: ${st.k.payouts} bill(s) paid from SGD ${(st.k.payoutSgd / 100).toFixed(2)}${st.k.payRefused ? `, ${st.k.payRefused} refused as already paid` : ""}, ${st.k.held} held</span>`;
     const sk = idx >= 0 ? SCENES.of.get(EVENTS[idx].seq) : null;
     const s = sk ? SCENES.list.find((x) => x.key === sk) : null;
     const cap = $("caption");
