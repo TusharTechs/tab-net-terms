@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { resolveT0Customers, type T0Mcp } from "../src/books/books.js";
 import { deskBooks } from "../src/books/desk-books.js";
-import { billPaymentRecord, customerRecord, invoiceRecords } from "../src/books/t0records.js";
+import { billPaymentRecord, customerPaymentRecord, customerRecord, invoiceRecords, vendorBillRecord, vendorRecord } from "../src/books/t0records.js";
 import { BUYERS, T0_BUYERS } from "../src/desk/northwind.js";
 import { recordBillPayment } from "../src/payout/vendor.js";
 
@@ -39,6 +39,20 @@ describe("records written into T:0", () => {
     expect(recs[0]!.data).toMatchObject({ status: "paid", paidDate: "2026-09-25" });
     expect(recs[1]!.data).toMatchObject({ amount: 60, status: "succeeded", succeededDate: "2026-09-25" });
     expect(recs[1]!.links).toEqual([{ dataType: "Customer", externalId: "c" }, { dataType: "Invoice", externalId: "x" }]);
+  });
+
+  it("a payment applied to no invoice links only to the customer, so it adds no invoice history", () => {
+    const p = customerPaymentRecord({ id: "p", customerId: "c", amountCents: 8_000, date: "2026-11-10", description: "d", customFields: { metal_tx: "0x1" } });
+    expect(p.id.dataType).toBe("Payment");
+    expect(p.links).toEqual([{ dataType: "Customer", externalId: "c" }]);
+    expect(p.data).toMatchObject({ amount: 80, status: "succeeded", customFields: { metal_tx: "0x1" } });
+  });
+
+  it("a demo bill is open, in dollars, numbered, and owed to our own vendor record", () => {
+    expect(vendorRecord("tab-vendor-slack", "Slack Technologies, Inc.", "2026-10-01").id).toEqual({ dataType: "Vendor", externalId: "tab-vendor-slack" });
+    const b = vendorBillRecord({ id: "b", vendorId: "tab-vendor-slack", number: "SLK-1", amountCents: 15_000, date: "2026-10-20", due: "2026-11-04", memo: "m" });
+    expect(b.data).toMatchObject({ status: "open", total: 150, subtotal: 150, tax: 0, dueDate: "2026-11-04", customFields: { bill_number: "SLK-1" } });
+    expect(b.links).toEqual([{ dataType: "Vendor", externalId: "tab-vendor-slack" }]);
   });
 
   it("no reserved t0_ custom fields are submitted", () => {

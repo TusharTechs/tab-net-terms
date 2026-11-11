@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { type AirwallexClient, AirwallexError } from "../src/airwallex/client.js";
 import type { DeskState } from "../src/desk/desk.js";
-import { decidePayouts, payoutsOf, payVendorBill, provenSgdOf, type VendorBill } from "../src/payout/vendor.js";
+import { decidePayouts, paidOnAirwallex, paidOnAirwallexReason, payoutRequestId, payoutsOf, payVendorBill, provenSgdOf, type VendorBill } from "../src/payout/vendor.js";
 import { checkBooks, checkLive } from "../src/proof/checker.js";
 
 const bill = (id: string, amount: number, due: string): VendorBill => ({ id, number: `INV-${id}`, vendorId: `v-${id}`, vendorName: `Vendor ${id}`, currency: "USD", amount, dueDate: due });
@@ -45,6 +45,7 @@ function fakeAwx(existing: { id: string; request_id: string; status: string; sou
       calls.push(`GET ${path}`);
       const rid = /request_id=([^&]+)/.exec(path)?.[1];
       if (rid) return { items: transfers.filter((t) => t.request_id === decodeURIComponent(rid)) };
+      if (path.startsWith("/transfers?page_num=")) return { items: transfers };
       const id = path.split("/").at(-1);
       return transfers.find((t) => t.id === id);
     },
@@ -71,7 +72,7 @@ describe("paying a bill on Airwallex", () => {
     const { awx, calls } = fakeAwx();
     const r = await payVendorBill(awx, { bill: b, beneficiaryId: "ben", requestId: "tab-r1-small", simulate: true });
     expect(r).toMatchObject({ transferId: "t-new", status: "PAID", sgdCents: 12_901, paidCents: 10_000, alreadyDone: false });
-    expect(calls).toEqual(["GET /transfers?request_id=tab-r1-small", "POST /transfers/create", "POST /simulation/transfers/t-new/transition", "POST /simulation/transfers/t-new/transition", "GET /transfers/t-new"]);
+    expect(calls).toEqual(["GET /transfers?request_id=tab-r1-small", "GET /transfers?page_num=0&page_size=100", "POST /transfers/create", "POST /simulation/transfers/t-new/transition", "POST /simulation/transfers/t-new/transition", "GET /transfers/t-new"]);
   });
 
   it("a second attempt finds the first transfer and sends nothing", async () => {
@@ -85,6 +86,47 @@ describe("paying a bill on Airwallex", () => {
     const { awx } = fakeAwx([], { duplicateOnCreate: true });
     const r = await payVendorBill(awx, { bill: b, beneficiaryId: "ben", requestId: "tab-r1-small", simulate: false });
     expect(r).toMatchObject({ transferId: "t-new", alreadyDone: true });
+  });
+});
+
+describe("paying a bill on Airwallex, across runs", () => {
+  const b = bill("small", 10_000, "2026-03-16");
+  const paid = { id: "t-old", request_id: "tab-an-earlier-run-small", status: "PAID", source_amount: 129.01, transfer_amount: 100, reference: "INV-small", beneficiary_id: "ben", transfer_currency: "USD" };
+
+  it("the request id names only the bill, so every run asks Airwallex for the same one", () => {
+    expect(payoutRequestId(b)).toBe("tab-bill-small");
+  });
+
+  it("a live transfer of the same bill number, amount and payee under another request id counts as paid", async () => {
+    const { awx, calls } = fakeAwx([paid]);
+    const r = await payVendorBill(awx, { bill: b, beneficiaryId: "ben", requestId: payoutRequestId(b), simulate: true });
+    expect(r).toMatchObject({ transferId: "t-old", alreadyDone: true });
+    expect(calls.some((c) => c.startsWith("POST"))).toBe(false);
+  });
+
+  it("before deciding, bills Airwallex already paid are found, and their money is not set aside again", async () => {
+    const other = bill("next", 15_000, "2026-11-04");
+    const { awx } = fakeAwx([paid]);
+    const onAwx = await paidOnAirwallex(awx, [b, other], { "v-small": "ben", "v-next": "ben" });
+    expect([...onAwx.keys()]).toEqual(["small"]);
+    const costs = new Map([["small", 12_900], ["next", 19_300]]);
+    const reasons = new Map([...onAwx].map(([id, t]) => [id, paidOnAirwallexReason(t)]));
+    const d = decidePayouts([b, other], costs, { provenSgd: 30_000, spentSgd: 0, paidBillIds: new Set(onAwx.keys()), paidReasons: reasons });
+    expect(d.map((x) => x.verdict)).toEqual(["already_paid", "pay"]);
+    expect(d[0]!.reason).toMatch(/already paid by Airwallex transfer t-old \(PAID\); T:0 still shows the bill open/);
+  });
+
+  it("a vendor with no bank details on file is never matched", async () => {
+    const { awx } = fakeAwx([paid]);
+    expect((await paidOnAirwallex(awx, [b], {})).size).toBe(0);
+  });
+
+  it("a failed transfer, another payee or another amount does not count: the bill is paid", async () => {
+    for (const other of [{ ...paid, status: "FAILED" }, { ...paid, beneficiary_id: "someone-else" }, { ...paid, transfer_amount: 99 }]) {
+      const { awx } = fakeAwx([other]);
+      const r = await payVendorBill(awx, { bill: b, beneficiaryId: "ben", requestId: payoutRequestId(b), simulate: false });
+      expect(r.alreadyDone).toBe(false);
+    }
   });
 });
 

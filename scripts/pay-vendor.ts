@@ -13,7 +13,7 @@ import { config } from "../src/config.js";
 import { Desk, type DeskState, fileStore } from "../src/desk/desk.js";
 import { NORTHWIND } from "../src/desk/northwind.js";
 import { MetalAgent, txReceipt, USDZ, usdzBalance } from "../src/metal/agent.js";
-import { bookPayout, decidePayouts, recordBillPayment, openVendorBills, payoutsOf, payVendorBill, provenSgdOf, quoteSgdCost } from "../src/payout/vendor.js";
+import { bookPayout, decidePayouts, paidOnAirwallex, paidOnAirwallexReason, payoutRequestId, recordBillPayment, openVendorBills, payoutsOf, payVendorBill, provenSgdOf, quoteSgdCost } from "../src/payout/vendor.js";
 import { checkBooks, checkLive } from "../src/proof/checker.js";
 
 const [deskFile = "data/desk-demo.json"] = process.argv.slice(2);
@@ -26,7 +26,6 @@ const awx = new AirwallexClient({ baseUrl: cfg.AWX_BASE_URL, clientId: cfg.AWX_C
 const t0 = new T0Mcp(cfg.T0_API_KEY);
 const t0Import = cfg.T0_IMPORT_API_KEY ? new T0Mcp(cfg.T0_IMPORT_API_KEY) : undefined;
 const desk = new Desk(state, { supplierPayee: NORTHWIND.supplier, policyPublicKey: NORTHWIND.cfoPolicyKey.pub, metal: new MetalAgent(), balanceOf: (a) => usdzBalance(rpc, a), books: (await deskBooks(t0)).books, now: () => new Date(), persist: store.save });
-const run = `pv${Date.now().toString(36)}`;
 
 const bills = await openVendorBills(t0);
 const costs = new Map<string, number>();
@@ -35,11 +34,13 @@ const done = payoutsOf(state);
 const proven = provenSgdOf(state);
 console.log(`proven SGD ${(proven / 100).toFixed(2)}, already paid out SGD ${(done.spentSgd / 100).toFixed(2)}`);
 const beneficiaries = existsSync("data/payout/beneficiaries.json") ? (JSON.parse(readFileSync("data/payout/beneficiaries.json", "utf8")) as Record<string, string>) : {};
-for (const d of decidePayouts(bills, costs, { provenSgd: proven, spentSgd: done.spentSgd, paidBillIds: done.paidBillIds })) {
+const onAwx = await paidOnAirwallex(awx, bills, beneficiaries);
+const paidReasons = new Map([...onAwx].map(([id, t]) => [id, paidOnAirwallexReason(t)]));
+for (const d of decidePayouts(bills, costs, { provenSgd: proven, spentSgd: done.spentSgd, paidBillIds: new Set([...done.paidBillIds, ...onAwx.keys()]), paidReasons })) {
   const b = d.bill;
   const ben = beneficiaries[b.vendorId];
   if (d.verdict === "pay" && ben) {
-    const paid = await payVendorBill(awx, { bill: b, beneficiaryId: ben, requestId: `tab-${run}-${b.id}`, simulate: true });
+    const paid = await payVendorBill(awx, { bill: b, beneficiaryId: ben, requestId: payoutRequestId(b), simulate: true });
     desk.recordPayout({ billId: b.id, billNumber: b.number, vendor: b.vendorName, currency: b.currency, amount: b.amount, sgdCents: paid.sgdCents, transferId: paid.transferId, shortRef: paid.shortRef, status: paid.status, requestId: paid.requestId, reason: d.reason });
     const je = await bookPayout(t0, { bill: b, transferId: paid.transferId, shortRef: paid.shortRef, date: new Date() });
     desk.recordBooks("desk", `booked in T:0${je.jeNumber ? ` as ${je.jeNumber}` : ""}: debit A/P - Vendors (${b.vendorName}), credit Airwallex cash ${b.currency} ${(b.amount / 100).toFixed(2)}`, { source: "t0", journalEntryId: je.journalEntryId, payoutTransferId: paid.transferId, amount: b.amount });

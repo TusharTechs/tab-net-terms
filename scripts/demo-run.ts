@@ -21,7 +21,7 @@ import { decideDispute } from "../src/disputes/decide.js";
 import { readDispute } from "../src/disputes/reader.js";
 import { FileLedger } from "../src/ledger/settlements.js";
 import { findTransfer, MetalAgent, txReceipt, USDZ, usdzBalance } from "../src/metal/agent.js";
-import { bookPayout, decidePayouts, recordBillPayment, openVendorBills, payoutsOf, payVendorBill, provenSgdOf, quoteSgdCost } from "../src/payout/vendor.js";
+import { bookPayout, decidePayouts, paidOnAirwallex, paidOnAirwallexReason, payoutRequestId, recordBillPayment, openVendorBills, payoutsOf, payVendorBill, provenSgdOf, quoteSgdCost } from "../src/payout/vendor.js";
 import { applyRails, compileGoals, signPolicy } from "../src/policy/policy.js";
 import { checkBooks, checkLive } from "../src/proof/checker.js";
 import { settleCollection } from "../src/settlement/bridge.js";
@@ -336,13 +336,16 @@ if (t0) {
   const costs = new Map<string, number>();
   for (const b of bills) costs.set(b.id, (await quoteSgdCost(awx, b.currency, b.amount)).sgdCents);
   const done = payoutsOf(state);
-  const decisions = decidePayouts(bills, costs, { provenSgd: provenSgdOf(state), spentSgd: done.spentSgd, paidBillIds: done.paidBillIds });
   const beneficiaries = existsSync("data/payout/beneficiaries.json") ? (JSON.parse(readFileSync("data/payout/beneficiaries.json", "utf8")) as Record<string, string>) : {};
+  // Airwallex is asked first which bills it already paid (T:0 may still show them open).
+  const onAwx = await paidOnAirwallex(awx, bills, beneficiaries);
+  const paidReasons = new Map([...onAwx].map(([id, t]) => [id, paidOnAirwallexReason(t)]));
+  const decisions = decidePayouts(bills, costs, { provenSgd: provenSgdOf(state), spentSgd: done.spentSgd, paidBillIds: new Set([...done.paidBillIds, ...onAwx.keys()]), paidReasons });
   for (const d of decisions) {
     const b = d.bill;
     const ben = beneficiaries[b.vendorId];
     if (d.verdict === "pay" && ben) {
-      const paid = await payVendorBill(awx, { bill: b, beneficiaryId: ben, requestId: `tab-${run}-${b.id}`, simulate: true });
+      const paid = await payVendorBill(awx, { bill: b, beneficiaryId: ben, requestId: payoutRequestId(b), simulate: true });
       desk.recordPayout({ billId: b.id, billNumber: b.number, vendor: b.vendorName, currency: b.currency, amount: b.amount, sgdCents: paid.sgdCents, transferId: paid.transferId, shortRef: paid.shortRef, status: paid.status, requestId: paid.requestId, reason: d.reason });
       const je = await bookPayout(t0, { bill: b, transferId: paid.transferId, shortRef: paid.shortRef, date: new Date() });
       desk.recordBooks("desk", `booked in T:0${je.jeNumber ? ` as ${je.jeNumber}` : ""}: debit A/P - Vendors (${b.vendorName}), credit Airwallex cash ${b.currency} ${(b.amount / 100).toFixed(2)}`, { source: "t0", journalEntryId: je.journalEntryId, payoutTransferId: paid.transferId, amount: b.amount });

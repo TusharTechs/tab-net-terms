@@ -49,6 +49,37 @@ export function invoiceRecords(p: { id: string; customerId: string; amountCents:
   ];
 }
 
+/**
+ * A customer payment not applied to any invoice: money the customer paid that the credit check
+ * does not count as invoice history (it reads invoices only). It also makes the customer readable
+ * through T:0's API, which a journal entry needs to name it.
+ */
+export function customerPaymentRecord(p: { id: string; customerId: string; amountCents: number; date: string; description: string; customFields?: Record<string, string> }): T0Record {
+  return {
+    id: { dataType: "Payment", externalId: p.id },
+    data: { date: p.date, succeededDate: p.date, amount: usd(p.amountCents), currencyCode: "USD", status: "succeeded", description: p.description, ...(p.customFields ? { customFields: p.customFields } : {}) },
+    links: [{ dataType: "Customer", externalId: p.customerId }],
+  };
+}
+
+/**
+ * A vendor written by us. Links from our records to a vendor another connection ingested (e.g. the
+ * Ramp-sourced vendors in the sandbox) were accepted but did not resolve when we tried, so our bills name our own vendor.
+ */
+export function vendorRecord(id: string, name: string, date: string): T0Record {
+  return { id: { dataType: "Vendor", externalId: id }, data: { date, name, customFields: { source: "TAB demo vendor" } } };
+}
+
+/** An open vendor bill owed to a vendor (one written by us: see vendorRecord). */
+export function vendorBillRecord(p: { id: string; vendorId: string; number: string; amountCents: number; date: string; due: string; memo: string }): T0Record {
+  const amount = usd(p.amountCents);
+  return {
+    id: { dataType: "VendorBill", externalId: p.id },
+    data: { date: p.date, dueDate: p.due, currencyCode: "USD", subtotal: amount, tax: 0, total: amount, status: "open", paidDate: null, customFields: { bill_number: p.number, memo: p.memo } },
+    links: [{ dataType: "Vendor", externalId: p.vendorId }],
+  };
+}
+
 /** The bill payment for a vendor bill TAB paid by Airwallex transfer. */
 export function billPaymentRecord(p: { billExternalId: string; vendorExternalId: string; amountCents: number; date: Date | string; transferId: string; shortRef: string }): T0Record {
   return {

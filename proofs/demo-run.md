@@ -46,7 +46,7 @@ Re-checked after the run, outside the desk's own checker:
 - Proof re-run: **25/25** (adds: each bill paid once; payouts spent only proven money, SGD 128.94 of 351.68; the transfer reads back PAID for exactly the bill and the SGD recorded; JE-12 tied to the payout, balanced, equal to the bill).
 - **Pay it again** (fault): the desk's lock refused the bill, then the same request id went to Airwallex, which answered with the original transfer. Transfers with that request id: 1 before, 1 after.
 
-Labelled: the vendor's bank details are sandbox test values; the T:0 bill stays "open" in T:0 (this key cannot update bills), so the duplicate lock is per demo run (the request id names the run and the bill).
+Labelled: the vendor's bank details are sandbox test values; the T:0 bill stays "open" in T:0 (this key cannot update bills), so the duplicate lock is per demo run (the request id names the run and the bill). *(Since then: the request id names only the bill, and before deciding the desk asks Airwallex which bills it already paid, under any request id. Asked about this bill, Airwallex returns transfer P261110-20KVBW6, so later runs refuse it although T:0 still shows it open.)*
 
 ## Live fault: kill the desk mid-pull on the credit line
 

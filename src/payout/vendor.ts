@@ -45,14 +45,14 @@ const sgd = (c: Cents) => `SGD ${(c / 100).toFixed(2)}`;
 export function decidePayouts(
   bills: VendorBill[],
   costs: Map<string, Cents>,
-  ctx: { provenSgd: Cents; spentSgd: Cents; paidBillIds: Set<string> },
+  ctx: { provenSgd: Cents; spentSgd: Cents; paidBillIds: Set<string>; paidReasons?: Map<string, string> },
   rules: PayoutRules = DEFAULT_PAYOUT_RULES,
 ): PayoutDecision[] {
   let available = ctx.provenSgd - ctx.spentSgd - rules.floorSgd;
   return [...bills]
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate) || a.amount - b.amount)
     .map((bill): PayoutDecision => {
-      if (ctx.paidBillIds.has(bill.id)) return { bill, verdict: "already_paid", reason: "this bill was already paid: the duplicate lock refuses it" };
+      if (ctx.paidBillIds.has(bill.id)) return { bill, verdict: "already_paid", reason: ctx.paidReasons?.get(bill.id) ?? "this bill was already paid: the duplicate lock refuses it" };
       const cost = costs.get(bill.id);
       if (cost === undefined) return { bill, verdict: "person", sgdCost: null, reason: "no SGD quote for this bill: a person decides" };
       if (cost > rules.maxPerBillSgd) return { bill, verdict: "person", sgdCost: cost, reason: `${sgd(cost)} is over the ${sgd(rules.maxPerBillSgd)} per-bill limit: a person approves it` };
@@ -135,13 +135,61 @@ export interface PaidTransfer {
   alreadyDone: boolean;
 }
 
-interface TransferRow { id: string; short_reference_id?: string; status: string; source_amount: number; transfer_amount: number; request_id: string }
+interface TransferRow { id: string; short_reference_id?: string; status: string; source_amount: number; transfer_amount: number; request_id: string; reference?: string; beneficiary_id?: string; transfer_currency?: string }
+
+/** The Airwallex request id for paying a bill: it names the bill only, so every run and every retry asks for the same one. */
+export const payoutRequestId = (bill: VendorBill) => `tab-bill-${bill.id}`.slice(0, 64);
+
+const DEAD = new Set(["FAILED", "CANCELLED", "RETURNED", "REJECTED"]);
+
+/**
+ * Any live transfer already paying this bill: same reference (the bill number), payee, currency and
+ * amount. Catches a payment made under a different request id (an earlier scheme, or by hand).
+ */
+export async function transferForBill(awx: AirwallexClient, bill: VendorBill, beneficiaryId: string, maxPages = 10): Promise<TransferRow | undefined> {
+  const ref = bill.number.slice(0, 35);
+  for (let page = 0; page < maxPages; page++) {
+    const r = await awx.get<{ items?: TransferRow[] }>(`/transfers?page_num=${page}&page_size=100`);
+    const items = r.items ?? [];
+    const hit = items.find((t) => t.reference === ref && t.beneficiary_id === beneficiaryId && t.transfer_currency === bill.currency && Math.round(t.transfer_amount * 100) === bill.amount && !DEAD.has(t.status));
+    if (hit) return hit;
+    if (items.length < 100) return undefined;
+  }
+  return undefined;
+}
+
+/**
+ * Which of these bills Airwallex already shows paid, before anything is decided: a live transfer under
+ * the bill's request id, or one with its number, amount and payee. T:0 can still show such a bill open
+ * (its payment not recorded there); the desk must not pay it, or spend proven money on it, again.
+ */
+export async function paidOnAirwallex(awx: AirwallexClient, bills: VendorBill[], beneficiaries: Record<string, string>, maxPages = 10): Promise<Map<string, TransferRow>> {
+  const all: TransferRow[] = [];
+  for (let page = 0; page < maxPages; page++) {
+    const items = (await awx.get<{ items?: TransferRow[] }>(`/transfers?page_num=${page}&page_size=100`)).items ?? [];
+    all.push(...items);
+    if (items.length < 100) break;
+  }
+  const out = new Map<string, TransferRow>();
+  for (const b of bills) {
+    const ben = beneficiaries[b.vendorId];
+    if (!ben) continue;
+    const live = all.filter((t) => !DEAD.has(t.status));
+    const hit = live.find((t) => t.request_id === payoutRequestId(b)) ?? live.find((t) => t.reference === b.number.slice(0, 35) && t.beneficiary_id === ben && t.transfer_currency === b.currency && Math.round(t.transfer_amount * 100) === b.amount);
+    if (hit) out.set(b.id, hit);
+  }
+  return out;
+}
+
+/** The reason shown for a bill Airwallex already shows paid. */
+export const paidOnAirwallexReason = (t: TransferRow) => `already paid by Airwallex transfer ${t.short_reference_id || t.id} (${t.status}); T:0 still shows the bill open`;
 
 /**
  * Pays one bill: an Airwallex transfer funded in SGD, paid in the bill's currency, to the vendor's
- * beneficiary. The request id names the bill, and Airwallex is asked for it first, so a retry or a
- * second attempt finds the first transfer instead of paying again. In the sandbox the transfer is
- * moved to SENT and then PAID with the simulation call.
+ * beneficiary. Two locks come first, both answered by Airwallex: the request id names the bill, so a
+ * retry or a later run finds the first transfer; and a live transfer of the same bill number, amount
+ * and payee under any request id also counts as paid. In the sandbox the transfer is moved to SENT
+ * and then PAID with the simulation call.
  */
 export async function payVendorBill(
   awx: AirwallexClient,
@@ -151,6 +199,8 @@ export async function payVendorBill(
   const existing = await awx.get<{ items?: TransferRow[] }>(`/transfers?request_id=${encodeURIComponent(p.requestId)}`);
   const prior = (existing.items ?? []).find((t) => t.request_id === p.requestId);
   if (prior) return toPaid(prior, true);
+  const sameBill = await transferForBill(awx, p.bill, p.beneficiaryId);
+  if (sameBill) return toPaid(sameBill, true);
   let t: TransferRow;
   try {
     t = await awx.post<TransferRow>("/transfers/create", {
