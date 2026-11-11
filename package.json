@@ -2,6 +2,7 @@
   "name": "tab",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "description": "TAB: net-30 for AI agents on Airwallex, Metal, Visa VIC and T:0",
   "type": "module",
   "engines": {

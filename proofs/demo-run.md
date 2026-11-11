@@ -1,5 +1,7 @@
 # Full demo run (2026-11-11, run `rmwbpgwbj`)
 
+Watch it: [demo video](https://youtu.be/_LsjxwVXuac) · [live project on AWS](https://main.d1k1s0hwodmj8i.amplifyapp.com) (the desk screen replaying this run).
+
 `LIVE_VIC=1 npx tsx scripts/demo-run.ts` plays every scene into `data/desk-demo.json`; the demo screen (`npm run screen`) streams them and `npm run replay` turns the run into the no-login replay page (`docs/index.html`). Live: Metal testnet, Claude (`claude-opus-5-5`: CFO policy compiler, two buyer agents, dispute reader), Visa Intelligent Commerce via Airi (one passkey approval), Airwallex sandbox, T:0 sandbox. **26/26 checks pass.**
 
 What is labelled rather than live:
