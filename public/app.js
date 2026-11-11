@@ -172,7 +172,10 @@
     const n = NODES[node];
     const fx = $("fx");
     if (!n || !fx) return;
+    // one stamp per node: a new one replaces the last (several events can land on a node within its 1.6 s)
+    fx.querySelectorAll(`text.stamp[data-node="${node}"]`).forEach((old) => old.remove());
     const t = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    t.dataset.node = node;
     t.setAttribute("x", n.x); t.setAttribute("y", n.y + 44); t.setAttribute("text-anchor", "middle");
     t.setAttribute("class", "stamp"); t.style.fill = cssVar(colorVar); t.textContent = text;
     fx.appendChild(t);
