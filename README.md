@@ -376,6 +376,18 @@ Upload `site.zip` to the returned `zipUploadUrl` with `curl -T site.zip "<zipUpl
 - The buyers' owner keys that bind mandates are key files run by the demo script, standing in for each buyer's human; the CFO's policy key is likewise a key file the script signs with.
 - Claude's wording and choices vary between runs (which payment option an agent picks, how an email splits into claims). Whatever it chooses, prices, limits, credits and refusals come from code.
 
+## AI tools disclosure
+
+AI was used both inside the product and to build it. All of it is listed here.
+
+| Tool | Used for |
+| --- | --- |
+| **Claude API** (`claude-opus-5-5`, Anthropic) | Part of the product at runtime: the CFO policy compiler, the two buyer agents, and the dispute reader. It proposes; code decides every amount (see [How each sponsor's tool is used](#claude-reads-and-proposes-never-decides-money)). |
+| **Claude Code** (Anthropic's coding agent, Claude Opus models) | Building the project under the author's direction: research on the hackathon and its rails, design, writing and testing the code, running the live sandbox and testnet runs, writing the proofs and this README, rehearsal reviews of the project, and producing the demo video (storyboard, voice-over script, the animated scenes, the score and the edit). |
+| **Kokoro-82M** (open-weight text-to-speech, Apache-2.0) | The demo video's voice-over. |
+
+The demo video's music and sound effects were synthesized by code written for it, not by a generative model, and its scenes were rendered from code (Playwright, GSAP, Three.js). Every number shown in the video and written in this README comes from the live run, its event log or the rails' own read-backs, not from a model.
+
 ## License
 
 [MIT](LICENSE) © 2026 Tushar Agarwal
