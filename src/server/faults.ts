@@ -2,7 +2,8 @@ import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { AirwallexClient } from "../airwallex/client.js";
 import { payoutsOf, payVendorBill } from "../payout/vendor.js";
-import { type Books, RoutedBooks, StandinBooks, T0Books, T0Mcp } from "../books/books.js";
+import { type Books, T0Mcp } from "../books/books.js";
+import { deskBooks } from "../books/desk-books.js";
 import { config } from "../config.js";
 import { Desk, type DeskDeps, type DeskState, fileStore } from "../desk/desk.js";
 import { BUYERS, NORTHWIND } from "../desk/northwind.js";
@@ -41,14 +42,12 @@ export async function liveRails(): Promise<FaultRails> {
   if (!rpc) throw new Error("METAL_RPC_URL missing");
   const awx = new AirwallexClient({ baseUrl: cfg.AWX_BASE_URL, clientId: cfg.AWX_CLIENT_ID, apiKey: cfg.AWX_API_KEY });
   const t0 = cfg.T0_API_KEY ? new T0Mcp(cfg.T0_API_KEY) : undefined;
-  // The same books the demo uses: Acme's real T:0 history, the labelled stand-in for the others.
-  const standin = new StandinBooks("fixtures/standin-books.json");
-  const t0Books = t0 ? new T0Books(t0, { acme: BUYERS.acme.t0Customer }) : undefined;
-  if (t0Books) await t0Books.refresh();
+  // The same books the demo uses: every buyer's history from the T:0 sandbox.
+  const { books } = await deskBooks(t0);
   return {
     awx,
     metal: new MetalAgent(),
-    books: t0Books ? new RoutedBooks({ acme: t0Books }, standin) : standin,
+    books,
     balanceOf: (a) => usdzBalance(rpc, a),
     findTransfer: (p) => findTransfer(rpc, p),
     // The same full live proof the demo runs: transfers and refusals on chain, Airwallex conversions and card captures, T:0 entries.

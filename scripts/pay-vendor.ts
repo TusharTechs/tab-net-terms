@@ -7,12 +7,13 @@
  */
 import { existsSync, readFileSync } from "node:fs";
 import { AirwallexClient } from "../src/airwallex/client.js";
-import { StandinBooks, T0Mcp } from "../src/books/books.js";
+import { T0Mcp } from "../src/books/books.js";
+import { deskBooks } from "../src/books/desk-books.js";
 import { config } from "../src/config.js";
 import { Desk, type DeskState, fileStore } from "../src/desk/desk.js";
 import { NORTHWIND } from "../src/desk/northwind.js";
 import { MetalAgent, txReceipt, USDZ, usdzBalance } from "../src/metal/agent.js";
-import { bookPayout, decidePayouts, openVendorBills, payoutsOf, payVendorBill, provenSgdOf, quoteSgdCost } from "../src/payout/vendor.js";
+import { bookPayout, decidePayouts, recordBillPayment, openVendorBills, payoutsOf, payVendorBill, provenSgdOf, quoteSgdCost } from "../src/payout/vendor.js";
 import { checkBooks, checkLive } from "../src/proof/checker.js";
 
 const [deskFile = "data/desk-demo.json"] = process.argv.slice(2);
@@ -23,7 +24,8 @@ const store = fileStore(deskFile);
 const state = JSON.parse(readFileSync(deskFile, "utf8")) as DeskState;
 const awx = new AirwallexClient({ baseUrl: cfg.AWX_BASE_URL, clientId: cfg.AWX_CLIENT_ID, apiKey: cfg.AWX_API_KEY });
 const t0 = new T0Mcp(cfg.T0_API_KEY);
-const desk = new Desk(state, { supplierPayee: NORTHWIND.supplier, policyPublicKey: NORTHWIND.cfoPolicyKey.pub, metal: new MetalAgent(), balanceOf: (a) => usdzBalance(rpc, a), books: new StandinBooks("fixtures/standin-books.json"), now: () => new Date(), persist: store.save });
+const t0Import = cfg.T0_IMPORT_API_KEY ? new T0Mcp(cfg.T0_IMPORT_API_KEY) : undefined;
+const desk = new Desk(state, { supplierPayee: NORTHWIND.supplier, policyPublicKey: NORTHWIND.cfoPolicyKey.pub, metal: new MetalAgent(), balanceOf: (a) => usdzBalance(rpc, a), books: (await deskBooks(t0)).books, now: () => new Date(), persist: store.save });
 const run = `pv${Date.now().toString(36)}`;
 
 const bills = await openVendorBills(t0);
@@ -41,6 +43,10 @@ for (const d of decidePayouts(bills, costs, { provenSgd: proven, spentSgd: done.
     desk.recordPayout({ billId: b.id, billNumber: b.number, vendor: b.vendorName, currency: b.currency, amount: b.amount, sgdCents: paid.sgdCents, transferId: paid.transferId, shortRef: paid.shortRef, status: paid.status, requestId: paid.requestId, reason: d.reason });
     const je = await bookPayout(t0, { bill: b, transferId: paid.transferId, shortRef: paid.shortRef, date: new Date() });
     desk.recordBooks("desk", `booked in T:0${je.jeNumber ? ` as ${je.jeNumber}` : ""}: debit A/P - Vendors (${b.vendorName}), credit Airwallex cash ${b.currency} ${(b.amount / 100).toFixed(2)}`, { source: "t0", journalEntryId: je.journalEntryId, payoutTransferId: paid.transferId, amount: b.amount });
+    if (t0Import) {
+      const bp = await recordBillPayment(t0Import, { bill: b, transferId: paid.transferId, shortRef: paid.shortRef, date: new Date() });
+      desk.recordBooks("desk", `recorded in T:0 against bill ${b.number}: a bill payment of ${b.currency} ${(b.amount / 100).toFixed(2)} by Airwallex transfer ${paid.shortRef || paid.transferId}`, { source: "t0", billPaymentRecord: bp, billId: b.id, payoutTransferId: paid.transferId });
+    }
     console.log(`PAID ${b.vendorName} ${b.number} ${b.currency} ${(b.amount / 100).toFixed(2)}: transfer ${paid.transferId} (${paid.shortRef}) ${paid.status}, SGD ${(paid.sgdCents / 100).toFixed(2)}; T:0 ${je.jeNumber ?? ""} ${je.journalEntryId}`);
   } else {
     const verdict = d.verdict === "pay" ? "person" : d.verdict;

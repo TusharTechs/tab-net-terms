@@ -17,5 +17,11 @@ export const BUYERS = {
   globex: { owner: "keys/globex-owner.json" },
 } as const;
 
+/**
+ * Our ids for the buyers written into T:0 by scripts/t0-seed-buyers.ts. T:0 gives each its own id
+ * after its nightly run; these stay findable as the record's platform_object_id.
+ */
+export const T0_BUYERS = { initech: "tab-cust-initech", globex: "tab-cust-globex" } as const;
+
 /** The Airi test card (payment method id) enrolled for the demo. */
 export const AIRI_TEST_CARD = "6a54bf19-f0f0-49ae-b2ef-c593de41577a";

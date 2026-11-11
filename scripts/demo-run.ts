@@ -4,14 +4,15 @@
  *   LIVE_VIC=1 npx tsx scripts/demo-run.ts      (Globex's first order is paid by Visa card: needs a passkey approval)
  *
  * Live: Metal testnet, Claude (buyer agents + dispute reading), Airwallex sandbox, T:0 sandbox.
- * Labelled: Globex/Initech books are the stand-in (T:0 has no matching customers and this key can't
- * create records); the Airwallex deposit is a simulation (the sandbox can't receive stablecoins);
+ * Books: every buyer's history is read from the T:0 sandbox (Acme: an existing customer; Initech and
+ * Globex: customers written there by scripts/t0-seed-buyers.ts). Labelled: the Airwallex deposit is a simulation (the sandbox can't receive stablecoins);
  * statement due windows are compressed to minutes so the video can show them.
  */
 import { existsSync, readFileSync, renameSync } from "node:fs";
 import { type BuyerPersona, runBuyerAgent } from "../src/agents/buyer.js";
 import { AirwallexClient } from "../src/airwallex/client.js";
-import { bookCollection, RoutedBooks, StandinBooks, T0Books, T0Mcp } from "../src/books/books.js";
+import { bookCollection, T0Mcp } from "../src/books/books.js";
+import { deskBooks } from "../src/books/desk-books.js";
 import { claude } from "../src/claude/client.js";
 import { config } from "../src/config.js";
 import { batchPaymentId, Desk, type DeskState, dueOn, fileStore, policyChangeText } from "../src/desk/desk.js";
@@ -20,7 +21,7 @@ import { decideDispute } from "../src/disputes/decide.js";
 import { readDispute } from "../src/disputes/reader.js";
 import { FileLedger } from "../src/ledger/settlements.js";
 import { findTransfer, MetalAgent, txReceipt, USDZ, usdzBalance } from "../src/metal/agent.js";
-import { bookPayout, decidePayouts, openVendorBills, payoutsOf, payVendorBill, provenSgdOf, quoteSgdCost } from "../src/payout/vendor.js";
+import { bookPayout, decidePayouts, recordBillPayment, openVendorBills, payoutsOf, payVendorBill, provenSgdOf, quoteSgdCost } from "../src/payout/vendor.js";
 import { applyRails, compileGoals, signPolicy } from "../src/policy/policy.js";
 import { checkBooks, checkLive } from "../src/proof/checker.js";
 import { settleCollection } from "../src/settlement/bridge.js";
@@ -39,7 +40,6 @@ const ISSUER = NORTHWIND.issuer;
 const ACME = BUYERS.acme;
 const GLOBEX_OWNER = BUYERS.globex.owner;
 const USD_GLOBAL_ACCOUNT = NORTHWIND.usdGlobalAccount;
-const T0_ACME_CUSTOMER = BUYERS.acme.t0Customer;
 
 // ── wiring ───────────────────────────────────────────────────────────────────
 const DESK_FILE = "data/desk-demo.json";
@@ -48,10 +48,9 @@ const store = fileStore(DESK_FILE);
 const state: DeskState = { buyers: {}, events: [] };
 const awx = new AirwallexClient({ baseUrl: cfg.AWX_BASE_URL, clientId: cfg.AWX_CLIENT_ID, apiKey: cfg.AWX_API_KEY });
 const t0 = cfg.T0_API_KEY ? new T0Mcp(cfg.T0_API_KEY) : undefined;
-const t0Books = t0 ? new T0Books(t0, { acme: T0_ACME_CUSTOMER }) : undefined;
-if (t0Books) await t0Books.refresh();
-const standin = new StandinBooks("fixtures/standin-books.json");
-const books = t0Books ? new RoutedBooks({ acme: t0Books }, standin) : standin;
+// Writes records (bill payments) into T:0; the account key above reads and posts journal entries.
+const t0Import = cfg.T0_IMPORT_API_KEY ? new T0Mcp(cfg.T0_IMPORT_API_KEY) : undefined;
+const { books, t0Customers } = await deskBooks(t0);
 const metal = new MetalAgent();
 const desk = new Desk(state, {
   supplierPayee: SUPPLIER,
@@ -119,16 +118,24 @@ state.buyers = {
 } as DeskState["buyers"];
 store.save(state);
 
+/** What the books say about a buyer, and where they say it (T:0, or the labelled stand-in). */
+async function showBooks(buyerId: string) {
+  const hist = await books.invoicesFor(buyerId);
+  const source = books.sourceFor?.(buyerId) ?? books.source;
+  const onTime = hist.filter((i) => i.paidAt && i.paidAt.getTime() <= i.dueDate.getTime() + 3 * 864e5).length;
+  const overdue = hist.filter((i) => !i.paidAt && i.dueDate.getTime() < Date.now()).length;
+  const customer = t0Customers[buyerId];
+  const name = t0 && customer ? (await t0.call<{ data?: { name?: string } }>("get_one_customer", { external_id: customer })).data?.name : undefined;
+  const where = source === "t0" ? (customer ? `T:0 customer "${name ?? customer}"` : "T:0 holds no transactions for it") : "stand-in books";
+  const what = hist.length ? `${onTime} of ${hist.length} invoices paid on time${overdue ? `, ${overdue} overdue` : ""}` : "no invoices with Northwind";
+  desk.recordBooks(buyerId, `books (${source === "t0" ? "T:0" : "stand-in"}): ${what} · ${where}`, { source, ...(customer ? { customer } : {}) });
+}
+
 // ── 1. Acme: verified Visa payment, credit line, T:0 history → net-30 ────────────
 say("1 · Acme: its earlier Visa payment is verified against Airwallex; its human binds a $400 credit line");
 const vicPrior = JSON.parse(readFileSync("data/vic/STM-20261109-E5DP.json", "utf8")) as { hash: string; mandateId: string; paymentIntentId: string; statementId: string };
 await desk.verifyVicPayment("acme", { paymentIntentId: vicPrior.paymentIntentId, airiMandateId: vicPrior.mandateId, statementId: vicPrior.statementId, statementHash: vicPrior.hash });
-if (t0 && t0Books) {
-  const cust = await t0.call<{ data?: { name?: string } }>("get_one_customer", { external_id: T0_ACME_CUSTOMER });
-  const hist = await t0Books.invoicesFor("acme");
-  const onTime = hist.filter((i) => i.paidAt && i.paidAt.getTime() <= i.dueDate.getTime() + 3 * 864e5).length;
-  desk.recordBooks("acme", `books (T:0): ${onTime} of ${hist.length} invoices paid on time · T:0 customer "${cust.data?.name ?? T0_ACME_CUSTOMER}"`, { source: "t0", customer: T0_ACME_CUSTOMER });
-}
+await showBooks("acme");
 await bindLine("acme", ACME.account, ACME.owner, 40_000);
 await desk.evaluate("acme");
 tail();
@@ -168,6 +175,7 @@ await pause();
 
 // ── 3. Globex: no history with us → a card-secured tab → only the undisputed amount captured → earns terms ─
 say("3 · Globex is new to Northwind: no Metal terms yet, but a Visa authorisation can secure a short tab");
+await showBooks("globex");
 await bindLine("globex", globexAcct.account, GLOBEX_OWNER, 9_000);
 const g1 = await runBuyerAgent(target, desk, { ...GLOBEX_AGENT, goal: "We're launching a pricing product: buy 5,000 rows of FX tick backfill now. Pay as late as Northwind allows." });
 tail();
@@ -211,6 +219,7 @@ await pause();
 
 // ── 4. Initech: overdue in the books; a scripted attacker is refused ─────────────
 say("4 · Initech's books show an overdue invoice: prepay only, and orders for terms it is not offered are refused");
+await showBooks("initech");
 await desk.evaluate("initech");
 for (const a of [
   // A buyer asking for terms it is not offered: the order is checked against the code-computed offer, whatever it says.
@@ -303,11 +312,12 @@ for (const c of toSettle) {
   const out = await settleCollection(awx, new FileLedger("data/settlements.json"), USD_GLOBAL_ACCOUNT, { metalTxHash: c.tx, amount: c.amount, payerName: name }, async () => false);
   if (out.kind === "converted") {
     desk.recordSettlement(c.buyerId, `deposited $${(c.amount / 100).toFixed(2)} into Airwallex, kept $${(out.reserved / 100).toFixed(2)} refund reserve, converted ${out.quote.sell_amount} USD → ${out.quote.buy_amount} SGD`, { depositId: out.depositId, quoteId: out.quote.quote_id, conversionId: out.conversionId, rate: out.quote.client_rate, metalTx: c.tx, sgdCents: Math.round(Number(out.quote.buy_amount) * 100) });
-    if (t0 && c.buyerId === "acme") {
-      const je = await bookCollection(t0, { customerExternalId: T0_ACME_CUSTOMER, amount: c.amount, currency: "USD", metalTx: c.tx, depositId: out.depositId, conversionId: out.conversionId, date: new Date() });
-      desk.recordBooks("acme", `booked in T:0${je.jeNumber ? ` as ${je.jeNumber}` : ""}: debit Airwallex cash, credit A/R $${(c.amount / 100).toFixed(2)}`, { source: "t0", journalEntryId: je.journalEntryId, metalTx: c.tx });
+    const t0Customer = t0Customers[c.buyerId];
+    if (t0 && t0Customer) {
+      const je = await bookCollection(t0, { customerExternalId: t0Customer, amount: c.amount, currency: "USD", metalTx: c.tx, depositId: out.depositId, conversionId: out.conversionId, date: new Date() });
+      desk.recordBooks(c.buyerId, `booked in T:0${je.jeNumber ? ` as ${je.jeNumber}` : ""}: debit Airwallex cash, credit A/R $${(c.amount / 100).toFixed(2)}`, { source: "t0", journalEntryId: je.journalEntryId, metalTx: c.tx });
     } else if (t0) {
-      desk.recordBooks(c.buyerId, `not booked in T:0: ${name} has stand-in books (no matching T:0 customer, and this key cannot create one)`, { source: "standin", metalTx: c.tx });
+      desk.recordBooks(c.buyerId, `not booked in T:0: ${name} has no transactions in T:0 yet, so T:0 cannot name it on a journal entry`, { source: books.sourceFor?.(c.buyerId) ?? books.source, metalTx: c.tx });
     }
   } else {
     desk.recordSettlement(c.buyerId, `settlement: ${out.kind}${"reason" in out ? ` (${out.reason})` : ""}`, {});
@@ -336,6 +346,10 @@ if (t0) {
       desk.recordPayout({ billId: b.id, billNumber: b.number, vendor: b.vendorName, currency: b.currency, amount: b.amount, sgdCents: paid.sgdCents, transferId: paid.transferId, shortRef: paid.shortRef, status: paid.status, requestId: paid.requestId, reason: d.reason });
       const je = await bookPayout(t0, { bill: b, transferId: paid.transferId, shortRef: paid.shortRef, date: new Date() });
       desk.recordBooks("desk", `booked in T:0${je.jeNumber ? ` as ${je.jeNumber}` : ""}: debit A/P - Vendors (${b.vendorName}), credit Airwallex cash ${b.currency} ${(b.amount / 100).toFixed(2)}`, { source: "t0", journalEntryId: je.journalEntryId, payoutTransferId: paid.transferId, amount: b.amount });
+      if (t0Import) {
+        const bp = await recordBillPayment(t0Import, { bill: b, transferId: paid.transferId, shortRef: paid.shortRef, date: new Date() });
+        desk.recordBooks("desk", `recorded in T:0 against bill ${b.number}: a bill payment of ${b.currency} ${(b.amount / 100).toFixed(2)} by Airwallex transfer ${paid.shortRef || paid.transferId}`, { source: "t0", billPaymentRecord: bp, billId: b.id, payoutTransferId: paid.transferId });
+      }
     } else if (d.verdict === "pay") {
       desk.recordPayoutHeld({ billId: b.id, billNumber: b.number, vendor: b.vendorName, currency: b.currency, amount: b.amount, verdict: "person", reason: "proven money covers it, but there are no bank details on file for this vendor: a person adds them" });
     } else {

@@ -1,5 +1,6 @@
 import { type AirwallexClient, AirwallexError } from "../airwallex/client.js";
 import { T0_GL, type T0Mcp } from "../books/books.js";
+import { billPaymentRecord, submitRecords } from "../books/t0records.js";
 import type { DeskState } from "../desk/desk.js";
 import type { Cents } from "../domain/money.js";
 
@@ -105,6 +106,17 @@ export async function openVendorBills(t0: T0Mcp): Promise<VendorBill[]> {
     const vid = b.links.find((l) => l.dataType === "Vendor")?.externalId ?? "";
     return { id: b.id.externalId, number: b.data.customFields?.bill_number ?? b.id.externalId, vendorId: vid, vendorName: names.get(vid) ?? vid, currency: b.data.currencyCode, amount: Math.round(b.data.total * 100), dueDate: b.data.dueDate };
   });
+}
+
+/**
+ * Records the payment against the bill itself in T:0 (a BillPayment linked to the bill and vendor),
+ * so T:0's own books show the bill paid after its nightly run. Needs the Custom API connection key.
+ * Fixed id per bill: a repeat replaces it rather than adding a second payment.
+ */
+export async function recordBillPayment(t0Import: T0Mcp, p: { bill: VendorBill; transferId: string; shortRef: string; date: Date }): Promise<string> {
+  const rec = billPaymentRecord({ billExternalId: p.bill.id, vendorExternalId: p.bill.vendorId, amountCents: p.bill.amount, date: p.date, transferId: p.transferId, shortRef: p.shortRef });
+  await submitRecords(t0Import, [rec]);
+  return rec.id.externalId;
 }
 
 /** What a bill costs in SGD right now (rounded up to the cent). */

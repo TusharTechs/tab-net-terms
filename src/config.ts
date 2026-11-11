@@ -18,6 +18,8 @@ const Env = z.object({
 
   T0_USERNAME: z.string().optional(),
   T0_API_KEY: z.string().optional(),
+  /** T:0 custom-integration key: only this kind can create records (customers, invoices, bill payments). T0_API_KEY reads and posts journal entries. */
+  T0_IMPORT_API_KEY: z.string().optional(),
   /** T:0 MCP endpoint issued with your key. */
   T0_MCP_URL: z.string().url().optional(),
 

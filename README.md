@@ -16,7 +16,7 @@ Businesses buy from each other on credit: net-30, 2% off for paying in 10 days. 
 | **Metal** (testnet) | The buyer's human binds a **debit mandate** naming Northwind: that is the credit line, and the limit can never exceed it. Each **statement becomes its own mandate** (cap and budget = the statement total, one payment, a due window): the chain refuses early and repeated collections, and Northwind records each refusal on chain. |
 | **Visa Intelligent Commerce** (via Airi) | A buyer with no history gets a short **tab secured by a passkey-approved card authorisation**; at the due date only the **undisputed amount is captured**. That verified payment is what earns Metal terms. |
 | **Airwallex** (sandbox) | Reads back every card payment before it counts; settles each collection (deposit → refund reserve → FX quote → conversion to SGD); pays Northwind's own vendor bills by **transfer**, funded only from that proven SGD. |
-| **T:0** (sandbox) | Payment history decides net-30 vs net-7 vs prepay; every settled collection is posted as a balanced journal entry tied to its Metal tx. |
+| **T:0** (sandbox) | Every buyer's payment history is read from T:0 and decides net-30 vs net-7 vs prepay; every settled collection is posted as a balanced journal entry tied to its Metal tx; a paid vendor bill gets its bill payment recorded against it. |
 
 The rules that never move: no credit before a Visa-verified payment, and each payment counts once, for one buyer; when the buyer's human lowers their mandate (or the buyer is demoted to prepay) the desk collects the whole tab at once, while any other drop in the limit collects only the excess; orders are never split to dodge the $200 card cap; credits are priced at what the buyer actually paid.
 
@@ -39,6 +39,8 @@ The rules that never move: no credit before a Visa-verified payment, and each pa
 | T:0 | Journal entries tied to the Metal collections | `je_prod_8Q1xcuSQvyGPkZkJ` (JE-10) · `je_prod_czIvKtSyTplbdJCJ` (JE-11) |
 | Airwallex | **Transfer** paying T:0 vendor bill INV-20250201-1234 (USD 100.00), funded with SGD 128.94 of proven money; PAID | `e75afb28-5ef0-4bd6-a088-8907e6ef17f8` (P261110-20KVBW6) |
 | T:0 | That payment, booked: debit A/P - Vendors, credit Airwallex cash | `je_prod_74eLxNGySYHPjUo6` (JE-12) |
+| T:0 | That payment, recorded against the bill itself: a bill payment linked to the bill and Slack, carrying the transfer id | our id `tab-billpay-t0_bill_prod_9a32a0da12fe3faf33e5` (accepted by T:0; T:0's API does not list bill payments) |
+| T:0 | Initech's books, written into the sandbox: customer, a $60 invoice paid 5 days late (with its payment), a $400 invoice overdue since Oct 18 | customer `t0_customer_prod_32b95cfd29087b54e366`, invoices `t0_invoice_prod_204e2c557826fe478c4e`, `t0_invoice_prod_c421d82ed9d1b494d4f5` |
 
 The vendor payout (scene 8b) was added after run `rmwavgb3a`, so it ran once on a copy of that run's state with `scripts/pay-vendor.ts`: same code, same checks (25/25). The next full run includes it as scene 8b.
 
@@ -59,7 +61,7 @@ The vendor payout (scene 8b) was added after run `rmwavgb3a`, so it ran once on 
 
 ## What is simulated or labelled
 
-- Globex's and Initech's books are a labelled stand-in (`fixtures/standin-books.json`: Globex has no history, Initech has an overdue invoice): the T:0 sandbox has no matching customers and this key cannot create records. Acme's books are real T:0 records.
+- **Whose books are whose.** Acme is mapped to an existing T:0 sandbox customer (Zephyr Metrics AB, 3/3 paid on time). Initech's history was written into the T:0 sandbox by us (`scripts/t0-seed-buyers.ts`, with a T:0 key issued for a custom API connection), and the desk reads it back from T:0 like any other customer's. Globex is a T:0 customer with no invoices; T:0 returns a customer only once a transaction links to it, so Globex's history reads as empty and its collection is not posted as a journal entry. Run `rmwavgb3a` predates this and read Globex and Initech from the labelled stand-in (`fixtures/standin-books.json`, the same history), which the desk still uses for Initech if T:0 does not return it.
 - Airwallex deposits are sandbox simulations (the sandbox cannot receive stablecoins); quotes, conversions and card payments are real sandbox calls.
 - Due dates are compressed to minutes so the video can show them.
 - Stale units are set by the demo script (standing in for delivery QA).
@@ -78,7 +80,7 @@ npm install
 cp .env.example .env
 ```
 
-Fill `.env` (Airwallex sandbox keys, your Metal testnet RPC URL, T:0 key, Claude provider). Key files live in `keys/` (git-ignored): the supplier wallet, the supplier issuer key, and the buyers' owner keys created with `metal-agent account create`. Airi keeps its own login (`airi-cli auth login`). Create the CFO's policy-signing key once (kept in `keys/`, separate from the Metal issuer key):
+Fill `.env` (Airwallex sandbox keys, your Metal testnet RPC URL, the two T:0 keys: one that reads and posts journal entries, one issued for a custom API connection that writes records; Claude provider). Write the demo buyers' books into T:0 once with `npx tsx scripts/t0-seed-buyers.ts`. Key files live in `keys/` (git-ignored): the supplier wallet, the supplier issuer key, and the buyers' owner keys created with `metal-agent account create`. Airi keeps its own login (`airi-cli auth login`). Create the CFO's policy-signing key once (kept in `keys/`, separate from the Metal issuer key):
 
 ```bash
 npx tsx scripts/create-policy-key.ts
@@ -120,6 +122,7 @@ Smaller tools: `scripts/try-cfo-policy.ts` (compile goals, no money moves), `scr
 | `src/metal/agent.ts` | metal-agent CLI wrapper: credentials, binds, pulls, recorded refusals |
 | `src/settlement/bridge.ts` | Airwallex deposit → reserve → quote → conversion, idempotent |
 | `src/books/books.ts` | T:0 via MCP (history, journal entries) and the stand-in |
+| `src/books/desk-books.ts` · `src/books/t0records.ts` | Which books answer for each buyer; records written into T:0 (customers, invoices, bill payments) |
 | `src/proof/checker.ts` | "Every dollar proven": book invariants and live checks |
 | `src/server/` | Demo screen (SSE) and the fault buttons |
 

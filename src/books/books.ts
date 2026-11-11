@@ -35,9 +35,9 @@ export class RoutedBooks implements Books {
 }
 
 /**
- * Reads a buyer's real invoice history from T:0. The demo buyer is mapped to an existing
- * T:0 customer (this key can read records and post journal entries, but cannot create records).
- * Invoices are loaded once and cached; call refresh() to re-read.
+ * Reads a buyer's real invoice history from T:0. Acme is mapped to an existing T:0 customer;
+ * Initech and Globex are customers we submitted to the T:0 sandbox (scripts/t0-seed-buyers.ts).
+ * A buyer with no T:0 customer id reads as no invoices. Loaded once and cached; refresh() re-reads.
  */
 export class T0Books implements Books {
   readonly source = "t0" as const;
@@ -49,7 +49,7 @@ export class T0Books implements Books {
     readonly customerFor: Record<string, string>,
   ) {}
 
-  async refresh(maxPages = 12) {
+  async refresh(maxPages = 30) {
     const wanted = new Set(Object.values(this.customerFor));
     const byCustomer = new Map<string, InvoiceRecord[]>();
     for (const status of ["open", "paid", "uncollectible"]) {
@@ -74,6 +74,23 @@ export class T0Books implements Books {
     const c = this.customerFor[buyerId];
     return c ? (this.cache.get(c) ?? []) : [];
   }
+}
+
+/**
+ * Finds the T:0 ids of customers we submitted ourselves (scripts/t0-seed-buyers.ts): T:0 gives each
+ * record its own id and keeps ours as `platform_object_id`. Customers T:0 does not return yet are left out.
+ */
+export async function resolveT0Customers(t0: T0Mcp, ours: Record<string, string>): Promise<Record<string, string>> {
+  const ids = Object.values(ours);
+  if (!ids.length) return {};
+  const r = await t0.call<{ data?: { id: { externalId: string }; data: { customFields?: { t0_platform_object_id?: string } } }[] }>("list_customers", { platform_object_ids: ids });
+  const byOurs = new Map((r.data ?? []).map((c) => [c.data.customFields?.t0_platform_object_id, c.id.externalId]));
+  const out: Record<string, string> = {};
+  for (const [buyer, id] of Object.entries(ours)) {
+    const found = byOurs.get(id);
+    if (found) out[buyer] = found;
+  }
+  return out;
 }
 
 interface T0Invoice {
@@ -138,7 +155,7 @@ interface StandinInvoice {
   paidAt?: string;
 }
 
-/** Local, clearly labelled stand-in used while the T:0 key is unavailable. */
+/** Local, clearly labelled stand-in, used only for a buyer T:0 does not return (or with no T:0 key). */
 export class StandinBooks implements Books {
   readonly source = "standin" as const;
   private readonly rows: StandinInvoice[];
@@ -159,9 +176,8 @@ export class StandinBooks implements Books {
 
 /**
  * Minimal client for T:0's MCP server (streamable HTTP, JSON-RPC, bearer auth).
- * Verified on 2026-11-08: initialize and tools/list work; tool calls reach T:0's API
- * but the issued key returns 401 CAPI15. Invoice field mapping is written once real
- * records can be read; until then T0Books is not used by the desk.
+ * The key decides what a call may do: the account key reads records and posts journal
+ * entries; a Custom API connection key also submits records (create_records).
  */
 export class T0Mcp {
   constructor(
