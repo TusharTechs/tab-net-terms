@@ -22,6 +22,7 @@ Airwallex Agentic Banking Hackathon entry, team **Four Eyes, One Human**. Built 
 | **Demo video** (4:50, one live run end to end) | **https://youtu.be/_LsjxwVXuac** |
 | **Live project** (the desk screen replaying the live run; no login, no keys) | **https://main.d1k1s0hwodmj8i.amplifyapp.com** |
 | **Proof of the run**: every id, every check, re-read after the run | [`proofs/demo-run.md`](proofs/demo-run.md) |
+| **Judges' package**: video, guide (PDF), offline replay, the run's raw evidence, checksums | [Release v1.0.0](https://github.com/TusharTechs/tab-net-terms/releases/tag/v1.0.0) · [`JUDGES.md`](JUDGES.md) |
 | **Metal**: statement collected through its own mandate | [`0x747b21ed…2baa`](https://testnet.metalntwx.com/tx/0x747b21ed394e3ec6f9de96f7f2e31e9187fa2829b76cfe780a60a13373ae2baa) |
 | **Metal**: early collection refused, refusal recorded on chain | [`0x24ce402a…5c0b`](https://testnet.metalntwx.com/tx/0x24ce402afb5119a292f8c8d31095650cb43efee5ffa20abaa718d2408e665c0b) |
 | **Metal**: second collection (fresh payment id) refused on chain | [`0x846e31d8…65fa`](https://testnet.metalntwx.com/tx/0x846e31d8684c0e528acd29253be9db1558166471c0bb0df632067b744e8a65fa) |
