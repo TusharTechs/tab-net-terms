@@ -27,11 +27,14 @@ Airwallex Agentic Banking Hackathon · team Four Eyes, One Human · run `rmwbpgw
 | Every dollar proven: 26/26 | [`proofs/demo-run.md`](proofs/demo-run.md); `src/proof/checker.ts` |
 | It runs | `npm install` then `npm test`: 139 tests, no keys needed (Node 22.13+) |
 
-## Fit for each award
+## Sponsor award requirements
 
-- **Metal Award (Metal + Airwallex):** credit lines and statements are Metal debit mandates bound by the buyer's human; the chain enforces amount, count and due window; refusals are recorded on chain; a cut line is honoured at once; every Metal collection settles into Airwallex.
-- **Visa Award (VIC via Airi + Airwallex):** a stranger becomes a customer through a passkey-approved Airi mandate and an Airwallex Payment Acceptance pre-authorisation; only what is owed is captured and read back; that verified payment is what earns credit.
-- **Founder's and Judges' Choice:** agents buying on credit, from the seller's side, with the decision changing as balance, deadline, evidence and risk change, and ending in real money movements on four rails plus a proof of every dollar. The README maps each point of Airwallex's builder guide to the code and the run.
+The Metal and Visa awards each ask for their tool used together with Airwallex tooling. How TAB uses them:
+
+- **Metal + Airwallex:** credit lines and statements are Metal debit mandates bound by the buyer's human; the chain enforces amount, count and due window; refusals are recorded on chain; a cut line is honoured at once. Each Metal collection is then settled in the Airwallex sandbox (a simulated deposit, then a real FX conversion) and booked in T:0.
+- **Visa Intelligent Commerce via Airi + Airwallex:** a buyer with no history gets a tab secured by a passkey-approved Airi mandate and an Airwallex Payment Acceptance pre-authorisation; only what is owed is captured and read back; that verified payment is what earns credit.
+
+How the project maps to each point of Airwallex's builder guide is in the README, under "How TAB meets the judging criteria".
 
 ## Labelled, not hidden
 
