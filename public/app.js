@@ -117,7 +117,7 @@
 
   // ── rails map ──────────────────────────────────────────────────────────
   const NODES = {
-    buyers: { x: 95, y: 150, w: 160, t: "Buyer agents", s: "Acme · Globex · Initech", c: "--info", ic: "bot" },
+    buyers: { x: 95, y: 150, w: 176, t: "Buyer agents", s: "Acme · Globex · Initech", c: "--info", ic: "bot" },
     claude: { x: 335, y: 46, w: 160, t: "Claude", s: "reads and proposes", c: "--claude", ic: "spark" },
     metal: { x: 335, y: 150, w: 160, t: "Metal", s: "debit mandates", c: "--metal", ic: "link" },
     visa: { x: 335, y: 254, w: 160, t: "Visa · Airi", s: "passkey card hold", c: "--visa", ic: "card" },
@@ -128,7 +128,7 @@
     vendor: { x: 800, y: 300, w: 160, t: "Vendor", s: "bill paid once", c: "--awx", ic: "send" },
   };
   const EDGES = {
-    "b-m": { d: "M175 150 L255 150" },
+    "b-m": { d: "M183 150 L255 150" },
     "m-d": { d: "M415 150 L480 150" },
     "b-d": { d: "M120 124 C 210 88, 470 88, 545 124" },
     "b-v": { d: "M150 176 C 185 254, 220 254, 255 254" },
